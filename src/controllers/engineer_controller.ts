@@ -86,3 +86,9 @@ export const importEngineersFromCsv = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Error importing CSV", error });
   }
 };
+
+export const checkhealth  = async ( req: Request, res: Response ) => {
+  return res.status(200).json({
+    message: "API & Server running...",
+  });
+}
