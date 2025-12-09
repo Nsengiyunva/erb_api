@@ -3,7 +3,6 @@ import dotenv from "dotenv";
 import engineers_routes  from "./routes/engineer_routes"
 import { sequelize, connectDB } from "./config/database";
 import cors from "cors";
-// import nfaMainRoutes from "./routes/nfaMainRoutes";
 import listEndpoints from 'express-list-endpoints';
 
 dotenv.config();

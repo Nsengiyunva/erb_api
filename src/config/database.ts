@@ -19,7 +19,7 @@ export const connectDB = async () => {
   // }
   try {
     await sequelize.authenticate();
-    console.log("Database connected");
+    console.log("ERB Database connected");
 
     await sequelize.sync({ alter: true });
     console.log("All models synchronized...");
