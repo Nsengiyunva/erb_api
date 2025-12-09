@@ -1,16 +1,14 @@
 import { DataTypes, Model } from "sequelize";
 import { sequelize } from "../config/database";
 
-export class Farmer extends Model {
+export class ERBUser extends Model {
   public id!: number;
   public name!: string;
-  public district!: string;
-  public phone!: string;
-  public age?: number;
-  public farm_size?: string;
+  public email!: string;
+  public password!: string;
 }
 
-Farmer.init(
+ERBUser.init(
   {
     id: {
       type: DataTypes.INTEGER,
@@ -23,28 +21,19 @@ Farmer.init(
       allowNull: false
     },
 
-    district: {
+    email: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true
+    },
+
+    password: {
       type: DataTypes.STRING,
       allowNull: false
-    },
-
-    phone: {
-      type: DataTypes.STRING,
-      allowNull: false
-    },
-
-    age: {
-      type: DataTypes.INTEGER,
-      allowNull: true
-    },
-
-    farm_size: {
-      type: DataTypes.STRING,
-      allowNull: true
     }
   },
   {
     sequelize,
-    tableName: "farmers"
+    tableName: "erb_user"
   }
 );

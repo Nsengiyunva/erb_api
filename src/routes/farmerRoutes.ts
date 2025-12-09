@@ -4,7 +4,7 @@ import {
   getFarmers,
   getFarmerById,
   updateFarmer,
-} from "../controllers/farmerController";
+} from "../controllers/engineer_controller";
 
 const router = Router();
 
