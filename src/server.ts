@@ -7,6 +7,7 @@ import cors from "cors";
 dotenv.config();
 
 const app = express();
+const PORT = process.env.PORT || 8877;
 app.use(cors({
     origin: [
       "http://localhost:3001",
@@ -27,4 +28,4 @@ app.use( "/api/engineers", engineers_routes )
 connectDB();
 sequelize.sync().then(() => console.log("Tables synced..."));
 
-app.listen(process.env.PORT, () => console.log(`Server running on ${process.env.PORT}`));
+app.listen(PORT, () => console.log(`Server running on ${PORT}`));
