@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { parse } from "csv-parse/sync";
-import { ERBEngineer } from "../models";
+import { ERBEngineer,  ERBPaid } from "../models";
 
 interface EngineerCsvRow {
   reg_date: string;
@@ -15,6 +15,18 @@ interface EngineerCsvRow {
   emails?: string;
   uipe_number?: string;
   qualification?: string;
+}
+
+interface PaidCsvRow {
+  record_no: string;
+  reg_no: string;
+  name: string;
+  specialization?: string;
+  license_no?: string;
+  email_address?: string;
+  base_field?: string;
+  issue_date?: string;
+  period?: number;
 }
 
 export const importEngineersFromCsv = async (req: Request, res: Response) => {
@@ -71,6 +83,70 @@ export const importEngineersFromCsv = async (req: Request, res: Response) => {
       });
 
       inserted.push(engineer);
+    }
+
+    return res.status(200).json({
+      message: "CSV imported successfully",
+      inserted: records.length,
+      // data: records,
+    });
+  } catch (error) {
+    console.error("CSV Import Error:", error);
+    return res.status(500).json({ message: "Error importing CSV", error });
+  }
+};
+
+
+export const importPaidList = async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "CSV file is required" });
+    }
+
+    const csvBuffer = req.file.buffer.toString();
+
+    const records = parse(csvBuffer, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+    }) as PaidCsvRow[];
+
+    if (!records.length) {
+      return res.status(400).json({ message: "CSV contains no data" });
+    }
+
+    const requiredFields = [
+      "reg_no",
+      "name",
+    ];
+
+    // Validate
+    // for (const row of records) {
+    //   for (const field of requiredFields) {
+    //     if (!row[field as keyof EngineerCsvRow]) {
+    //       return res.status(400).json({
+    //         message: `Missing required field: ${field}`,
+    //         row,
+    //       });
+    //     }
+    //   }
+    // }
+
+    const inserted = [];
+
+    for (const row of records) {
+      const item = await ERBPaid.create({
+        record_no: row.record_no,
+        reg_no: row.reg_no,
+        name: row.name,
+        specialization: row.specialization || "",
+        license_no: row.license_no || "",
+        email_address: row.email_address || "",
+        base_field: row.base_field || "",
+        period: row.period || "",
+      });
+
+      inserted.push( item );
     }
 
     return res.status(200).json({
