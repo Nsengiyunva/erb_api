@@ -36,21 +36,21 @@ export const importEngineersFromCsv = async (req: Request, res: Response) => {
     }
 
     const requiredFields = [
-      // "reg_no",
+      "reg_no",
       "name",
     ];
 
     // Validate
-    for (const row of records) {
-      for (const field of requiredFields) {
-        if (!row[field as keyof EngineerCsvRow]) {
-          return res.status(400).json({
-            message: `Missing required field: ${field}`,
-            row,
-          });
-        }
-      }
-    }
+    // for (const row of records) {
+    //   for (const field of requiredFields) {
+    //     if (!row[field as keyof EngineerCsvRow]) {
+    //       return res.status(400).json({
+    //         message: `Missing required field: ${field}`,
+    //         row,
+    //       });
+    //     }
+    //   }
+    // }
 
     const inserted = [];
 
