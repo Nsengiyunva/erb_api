@@ -36,7 +36,7 @@ export const importEngineersFromCsv = async (req: Request, res: Response) => {
     }
 
     const requiredFields = [
-      "reg_no",
+      // "reg_no",
       "name",
     ];
 
