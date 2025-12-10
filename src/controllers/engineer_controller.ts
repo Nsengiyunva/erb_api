@@ -57,29 +57,29 @@ export const importEngineersFromCsv = async (req: Request, res: Response) => {
 
     const inserted = [];
 
-    for (const row of records) {
-      const engineer = await ERBEngineer.create({
-        reg_date: new Date(row.reg_date),
-        organisation: row.organisation,
-        country: row.country,
-        reg_no: row.reg_no,
-        name: row.name,
-        gender: row.gender || null,
-        field: row.field || null,
-        address: row.address || null,
-        phones: row.phones || null,
-        emails: row.emails || null,
-        uipe_number: row.uipe_number || null,
-        qualification: row.qualification || null,
-      });
+    // for (const row of records) {
+    //   const engineer = await ERBEngineer.create({
+    //     reg_date: new Date(row.reg_date),
+    //     organisation: row.organisation,
+    //     country: row.country,
+    //     reg_no: row.reg_no,
+    //     name: row.name,
+    //     gender: row.gender || null,
+    //     field: row.field || null,
+    //     address: row.address || null,
+    //     phones: row.phones || null,
+    //     emails: row.emails || null,
+    //     uipe_number: row.uipe_number || null,
+    //     qualification: row.qualification || null,
+    //   });
 
-      inserted.push(engineer);
-    }
+    //   inserted.push(engineer);
+    // }
 
     return res.status(200).json({
       message: "CSV imported successfully",
-      inserted: inserted.length,
-      data: inserted,
+      inserted: records.length,
+      // data: records,
     });
   } catch (error) {
     console.error("CSV Import Error:", error);
@@ -89,6 +89,6 @@ export const importEngineersFromCsv = async (req: Request, res: Response) => {
 
 export const checkhealth  = async ( req: Request, res: Response ) => {
   return res.status(200).json({
-    message: "API & Server running...",
+    message: "API & Server is running...",
   });
 }
