@@ -94,7 +94,7 @@ export const importEngineersFromCsv = async (req: Request, res: Response) => {
     console.error("CSV Import Error:", error);
     return res.status(500).json({ message: "Error importing CSV", error });
   }
-};
+}
 
 
 export const importPaidList = async (req: Request, res: Response) => {
@@ -158,7 +158,53 @@ export const importPaidList = async (req: Request, res: Response) => {
     console.error("CSV Import Error:", error);
     return res.status(500).json({ message: "Error importing CSV", error });
   }
-};
+}
+
+export const getAllPaidRecords = async (req: Request, res: Response) => {
+  try {
+    const records = await ERBPaid.findAll({
+      order: [["id", "DESC"]],
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: records.length,
+      data: records,
+    });
+  } catch (error) {
+    console.error("Error fetching paid records:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error fetching paid records",
+    });
+  }
+}
+
+export const getPaidRecordById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const record = await ERBPaid.findByPk(Number(id));
+
+    if (!record) {
+      return res.status(404).json({
+        success: false,
+        message: `Record with ID ${id} not found`,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: record,
+    });
+  } catch (error) {
+    console.error("Error fetching paid record:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error fetching paid record",
+    });
+  }
+}
 
 export const checkhealth  = async ( req: Request, res: Response ) => {
   return res.status(200).json({
