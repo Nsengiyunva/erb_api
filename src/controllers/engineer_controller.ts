@@ -68,7 +68,7 @@ export const importEngineersFromCsv = async (req: Request, res: Response) => {
 
     for (const row of records) {
       const engineer = await ERBEngineer.create({
-        // reg_date: new Date(row.reg_date),
+        reg_date: new Date(row.reg_date),
         organisation: row.organisation,
         country: row.country,
         reg_no: row.reg_no,
@@ -143,7 +143,7 @@ export const importPaidList = async (req: Request, res: Response) => {
         license_no: row.license_no || "",
         email_address: row.email_address || "",
         base_field: row.base_field || "",
-        period: row.period || "",
+        period: row.period || ""
       });
 
       inserted.push( item );
