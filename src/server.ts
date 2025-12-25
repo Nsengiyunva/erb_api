@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import engineers_routes  from "./routes/engineer_routes"
+import auth_routes  from "./routes/authRoutes"
 import { sequelize, connectDB } from "./config/database";
 import cors from "cors";
 
@@ -21,8 +22,10 @@ app.use(cors({
   }));
    
 app.use(express.json());
+app.use("/uploads", express.static("uploads"));
 
 app.use( "/api/engineers", engineers_routes )
+app.use( "/api/auth/engineers", auth_routes )
 
 
 connectDB();
