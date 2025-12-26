@@ -11,7 +11,7 @@ export const register = async (req: Request, res: Response) => {
   
     const user = await User.create({
       ...req.body,
-      user_picture: req.file ? `/uploads/users/${req.file.filename}` : null
+      // user_picture: req.file ? `/uploads/users/${req.file.filename}` : null
     });
   
     res.status(201).json({
