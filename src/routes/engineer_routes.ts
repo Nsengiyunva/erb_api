@@ -27,32 +27,45 @@ router.get("/display/:registrationNo", async (req, res) => {
   try {
     const { registrationNo } = req.params;
 
-    const files = await fs.promises.readdir(FILE_DIR);
-
-    const filename = files.find(file =>
-      file.includes(`_${registrationNo}`)
+    const filePath = path.join(
+      FILE_DIR,
+      `${registrationNo}.pdf`
     );
 
-    if (!filename) {
-      return res.status(404).json({ message: "File not found" });
+    await fs.promises.access(filePath);
+
+    const stat = await fs.promises.stat(filePath);
+    const range = req.headers.range;
+
+    if (range) {
+      const [startStr, endStr] = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(startStr, 10);
+      const end = endStr ? parseInt(endStr, 10) : stat.size - 1;
+
+      res.writeHead(206, {
+        "Content-Range": `bytes ${start}-${end}/${stat.size}`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": end - start + 1,
+        "Content-Type": "application/pdf",
+        "Content-Disposition": "inline",
+      });
+
+      fs.createReadStream(filePath, { start, end }).pipe(res);
+    } else {
+      res.writeHead(200, {
+        "Content-Length": stat.size,
+        "Content-Type": "application/pdf",
+        "Content-Disposition": "inline",
+        "Accept-Ranges": "bytes",
+      });
+
+      fs.createReadStream(filePath).pipe(res);
     }
-
-    const filePath = path.join(FILE_DIR, path.basename(filename));
-
-    res.setHeader("Content-Disposition", "inline");
-
-    const stream = fs.createReadStream(filePath);
-    stream.pipe(res);
-
-    stream.on("error", () => {
-      res.status(500).end("Error reading file");
-    });
-
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    return res.status(404).json({ message: "File not found" });
   }
 });
+
 
 
 
