@@ -98,7 +98,7 @@ OldUser.init(
   },
   {
     sequelize,
-    tableName: 'old_users',
+    tableName: 'old_users_1',
     timestamps: false,
 
     hooks: {
