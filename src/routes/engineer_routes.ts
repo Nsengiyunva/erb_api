@@ -36,14 +36,14 @@ const { registrationNo } = req.params;
     return res.status(404).json({ message: "File not found" });
   }
 
-  return res.status(200).json({ message: "File found", filename });
+  // return res.status(200).json({ message: "File found", filename });
 
-  // const safeFile = path.basename(filename);
-  // const filePath = path.join(FILE_DIR, safeFile);
+  const safeFile = path.basename(filename);
+  const filePath = path.join(FILE_DIR, safeFile);
 
-  // // 📄 Open inline (PDF / image)
-  // res.setHeader("Content-Disposition", "inline");
-  // res.sendFile(filePath);
+  // 📄 Open inline (PDF / image)
+  res.setHeader("Content-Disposition", "inline");
+  res.sendFile(filePath);
   
 });
 
