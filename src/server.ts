@@ -9,6 +9,7 @@ import cors from "cors";
 
 import fs from "fs";
 import path from "path";
+import userRoutes from "./routes/user.routes";
 
 dotenv.config();
 
@@ -42,6 +43,7 @@ app.use("/uploads", express.static("uploads"));
 app.use( "/api/engineers", engineers_routes )
 app.use( "/api/auth/engineers", auth_routes )
 app.use("/api/files", filesRoutes);
+app.use('/old/users', userRoutes);
 
 
 connectDB();
