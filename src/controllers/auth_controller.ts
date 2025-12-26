@@ -1,27 +1,27 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import { User } from "../models/user";
+import OldUser  from "../models/old_user";
 
 const JWT_SECRET = "erb182qjdsufsdufudsuy";
 
 export const register = async (req: Request, res: Response) => {
-    const exists = await User.findOne({ where: { email: req.body.email } });
+    const exists = await OldUser.findOne({ where: { email: req.body.email } });
     if (exists) return res.status(400).json({ message: "User already exists" });
   
-    const user = await User.create({
+    const user = await OldUser.create({
       ...req.body,
       // user_picture: req.file ? `/uploads/users/${req.file.filename}` : null
     });
   
     res.status(201).json({
-      message: "User registered",
+      message: "User registered successfully.",
       userId: user.id
     });
   };
 
   export const forgotPassword = async (req: Request, res: Response) => {
-    const user = await User.findOne({ where: { email: req.body.email } });
+    const user = await OldUser.findOne({ where: { email: req.body.email } });
     if (!user) return res.json({ message: "If user exists, reset sent" });
   
     const token = crypto.randomBytes(32).toString("hex");
@@ -37,7 +37,7 @@ export const register = async (req: Request, res: Response) => {
   export const resetPassword = async (req: Request, res: Response) => {
     const { email, newPassword } = req.body;
   
-    const user = await User.findOne({ where: { email } });
+    const user = await OldUser.findOne({ where: { email } });
     if (!user) return res.status(400).json({ message: "User not found" });
   
     user.password = newPassword;
@@ -49,7 +49,7 @@ export const register = async (req: Request, res: Response) => {
   export const login = async (req: Request, res: Response) => {
     const { email, password } = req.body;
   
-    const user = await User.findOne({ where: { email } });
+    const user = await OldUser.findOne({ where: { email } });
     if (!user) return res.status(401).json({ message: "Invalid credentials" });
   
     const valid = await user.comparePassword(password);

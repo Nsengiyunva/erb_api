@@ -1,5 +1,6 @@
 import { DataTypes, Model } from 'sequelize';
 import { sequelize } from "../config/database";
+import bcrypt from 'bcryptjs';
 
 export interface UserAttributes {
   id?: number;
@@ -55,6 +56,10 @@ class OldUser extends Model<UserAttributes> implements UserAttributes {
   public name!: string;
   public status!: string;
   public user_type!: string;
+
+  public async comparePassword(password: string): Promise<boolean> {
+      return bcrypt.compare(password, this.password);
+    }
 }
 
 OldUser.init(
