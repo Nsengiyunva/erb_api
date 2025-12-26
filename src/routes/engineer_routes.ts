@@ -1,4 +1,6 @@
 import { Router } from "express";
+import fs from "fs";
+import path from "path";
 import { authenticate } from "../middleware/authenticate";
 import { uploadCSV } from "../middleware/uploadCSV";
 import { importEngineersFromCsv, checkhealth, importPaidList,  getAllPaidRecords,
@@ -6,6 +8,7 @@ import { importEngineersFromCsv, checkhealth, importPaidList,  getAllPaidRecords
 
 const router = Router();
 
+const FILE_DIR = "/var/ugpass/destination";
 
 //importr engineers
 router.post("/import-csv", uploadCSV, importEngineersFromCsv);
@@ -18,7 +21,23 @@ router.get("/paid-records", getAllPaidRecords);
 router.get("/paid-records/:id", getPaidRecordById);
 
 router.get("/display/:registrationNo", (req, res) => {
-  res.send("File endpoint hit: " + req.params.registrationNo);
+//   res.send("File endpoint hit: " + req.params.registrationNo);
+const { registrationNo } = req.params;
+
+  // 🔐 OPTIONAL: DB ownership check here
+
+  // 🔍 Find file by registration number
+  const files = fs.readdirSync(FILE_DIR);
+  const filename = files.find(file =>
+    file.includes(`_${registrationNo}`)
+  );
+
+  if (!filename) {
+    return res.status(404).json({ message: "File not found" });
+  }
+
+  res.send("File endpoint hit: " + filename  );
+  
 });
 
 
