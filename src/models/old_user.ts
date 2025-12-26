@@ -2,6 +2,8 @@ import { DataTypes, Model } from 'sequelize';
 import { sequelize } from "../config/database";
 import bcrypt from 'bcryptjs';
 
+const SALT_ROUNDS = 10;
+
 export interface UserAttributes {
   id?: number;
   first_name: string;
@@ -57,9 +59,10 @@ class OldUser extends Model<UserAttributes> implements UserAttributes {
   public status!: string;
   public user_type!: string;
 
-  public async comparePassword(password: string): Promise<boolean> {
-      return bcrypt.compare(password, this.password);
-    }
+  // 🔐 Password check
+  public async comparePassword(plainPassword: string): Promise<boolean> {
+    return bcrypt.compare(plainPassword, this.password);
+  }
 }
 
 OldUser.init(
@@ -73,7 +76,10 @@ OldUser.init(
     gender: DataTypes.STRING,
     company_name: DataTypes.STRING,
     address: DataTypes.STRING,
-    password: DataTypes.STRING,
+    password: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
     country: DataTypes.STRING,
     created_at: DataTypes.DATE,
     updated_at: DataTypes.DATE,
@@ -94,6 +100,22 @@ OldUser.init(
     sequelize,
     tableName: 'old_users',
     timestamps: false,
+
+    hooks: {
+      // 🔐 Hash on create
+      beforeCreate: async (user: OldUser) => {
+        if (user.password) {
+          user.password = await bcrypt.hash(user.password, SALT_ROUNDS);
+        }
+      },
+
+      // 🔐 Hash on update (ONLY if changed)
+      beforeUpdate: async (user: OldUser) => {
+        if (user.changed('password')) {
+          user.password = await bcrypt.hash(user.password, SALT_ROUNDS);
+        }
+      },
+    },
   }
 );
 
