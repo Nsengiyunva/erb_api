@@ -39,15 +39,18 @@ app.get("/files/display/:registrationNo", authenticate, async (req, res) => {
   const { registrationNo } = req.params;
 
   const filename = findFileByRegistration(registrationNo);
-  if (!filename) {
-    return res.status(404).json({ message: "File not found" });
-  }
+  return res.json(
+    filename
+  )
+  // if (!filename) {
+  //   return res.status(404).json({ message: "File not found" });
+  // }
 
-  const safeFile = path.basename(filename);
-  const filePath = path.join(uploadDir, safeFile);
+  // const safeFile = path.basename(filename);
+  // const filePath = path.join(uploadDir, safeFile);
 
-  res.setHeader("Content-Disposition", "inline");
-  res.sendFile(filePath);
+  // res.setHeader("Content-Disposition", "inline");
+  // res.sendFile(filePath);
 });
 
 
