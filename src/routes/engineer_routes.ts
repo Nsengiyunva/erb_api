@@ -36,7 +36,12 @@ const { registrationNo } = req.params;
     return res.status(404).json({ message: "File not found" });
   }
 
-  res.send("Filename: " + filename  );
+  const safeFile = path.basename(filename);
+  const filePath = path.join(FILE_DIR, safeFile);
+
+  // 📄 Open inline (PDF / image)
+  res.setHeader("Content-Disposition", "inline");
+  res.sendFile(filePath);
   
 });
 
