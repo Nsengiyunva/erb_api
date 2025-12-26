@@ -17,7 +17,7 @@ router.get( "/checkhealth", checkhealth );
 router.get("/paid-records", getAllPaidRecords);
 router.get("/paid-records/:id", getPaidRecordById);
 
-router.get("/display/:registrationNo", authenticate, (req, res) => {
+router.get("/display/:registrationNo", (req, res) => {
   res.send("File endpoint hit: " + req.params.registrationNo);
 });
 
