@@ -36,7 +36,7 @@ const { registrationNo } = req.params;
     return res.status(404).json({ message: "File not found" });
   }
 
-  res.send("File endpoint hit: " + filename  );
+  res.send("Filename: " + filename  );
   
 });
 
