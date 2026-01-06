@@ -64,6 +64,10 @@ ERBPaid.init(
     period: {
       type: DataTypes.INTEGER,
       allowNull: true,
+    },
+    license_status: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
     }
   },
   {
