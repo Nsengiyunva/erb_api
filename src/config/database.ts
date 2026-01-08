@@ -5,7 +5,7 @@ export const sequelize = new Sequelize(
   "erbadmin",
   "admin@NSE#256",
   {
-    host: "localhost",
+    host: "127.0.0.1",
     dialect: "mysql"
   }
 );
