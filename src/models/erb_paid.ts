@@ -66,7 +66,23 @@ ERBPaid.init(
       allowNull: true,
     },
     license_status: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    category: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    amount_paid: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    year_paid: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    email_status: {
+      type: DataTypes.STRING,
       allowNull: true,
     }
   },
