@@ -5,8 +5,19 @@ export const sequelize = new Sequelize(
   "erbadmin",
   "admin@NSE#256",
   {
-    host: "127.0.0.1",
-    dialect: "mysql"
+    host: "localhost",
+    dialect: "mysql",
+    logging: false, // disable SQL logs in production
+    pool: {
+      max: 10,
+      min: 0,
+      acquire: 30000,
+      idle: 10000,
+    },
+    define: {
+      freezeTableName: true, // prevent pluralization
+      underscored: true,     // use snake_case columns
+    },
   }
 );
 
