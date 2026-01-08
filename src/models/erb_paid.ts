@@ -62,7 +62,7 @@ ERBPaid.init(
     },
 
     period: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.STRING,
       allowNull: true,
     },
     license_status: {
