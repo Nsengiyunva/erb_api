@@ -206,6 +206,35 @@ export const getPaidRecordById = async (req: Request, res: Response) => {
   }
 }
 
+
+export const updateERBPaid = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const updateData = req.body;
+
+  try {
+    // Find the record first
+    const record = await ERBPaid.findByPk(id);
+
+    if (!record) {
+      return res.status(404).json({ message: "Record not found" });
+    }
+
+    // Update the record with new data
+    await record.update(updateData);
+
+    return res.status(200).json({
+      message: "Record updated successfully",
+      data: record,
+    });
+  } catch (error) {
+    console.error("Error updating ERBPaid record:", error);
+    return res.status(500).json({
+      message: "Failed to update record",
+      error: error instanceof Error ? error.message : error,
+    });
+  }
+};
+
 export const checkhealth  = async ( req: Request, res: Response ) => {
   return res.status(200).json({
     message: "API & Server is running...",

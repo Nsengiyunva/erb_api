@@ -84,6 +84,10 @@ ERBPaid.init(
     email_status: {
       type: DataTypes.STRING,
       allowNull: true,
+    },
+    purpose: {
+      type: DataTypes.STRING,
+      allowNull: true,
     }
   },
   {
