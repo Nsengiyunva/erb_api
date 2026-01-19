@@ -30,6 +30,7 @@ export interface UserAttributes {
   name: string;
   status: string;
   user_type: string;
+  user_level: string;
 }
 
 class OldUser extends Model<UserAttributes> implements UserAttributes {
@@ -58,6 +59,7 @@ class OldUser extends Model<UserAttributes> implements UserAttributes {
   public name!: string;
   public status!: string;
   public user_type!: string;
+  public user_level!: string;
 
   // 🔐 Password check
   public async comparePassword(plainPassword: string): Promise<boolean> {
@@ -95,6 +97,7 @@ OldUser.init(
     name: DataTypes.STRING,
     status: DataTypes.STRING,
     user_type: DataTypes.STRING,
+    user_level: DataTypes.STRING
   },
   {
     sequelize,
