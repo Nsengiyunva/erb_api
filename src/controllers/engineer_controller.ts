@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import { parse } from "csv-parse/sync";
 import { ERBEngineer,  ERBPaid } from "../models";
 
+import { engineers } from './fixtures'
+
 interface EngineerCsvRow {
   reg_date: string;
   organisation: string;
@@ -227,7 +229,7 @@ export const updateERBPaid = async (req: Request, res: Response) => {
       data: record,
     });
   } catch (error) {
-    console.error("Error updating ERBPaid record:", error);
+    // console.error("Error updating ERBPaid record:", error);
     return res.status(500).json({
       message: "Failed to update record",
       error: error instanceof Error ? error.message : error,
@@ -240,3 +242,14 @@ export const checkhealth  = async ( req: Request, res: Response ) => {
     message: "API & Server is running...",
   });
 }
+
+export const insertEngineers =  async ( req: Request, res: Response ) => {
+  try {
+    await ERBEngineer.bulkCreate( engineers );
+    return { success: true, message: "Engineers inserted successfully!" };
+  } catch (err) {
+    console.error("Error inserting engineers:", err);
+    return { success: false, message: err };
+  }
+}
+
