@@ -22,7 +22,9 @@ router.post( "/add-engineers", insertEngineers);
 
 router.post( "/engineer", addEngineer );
 
-router.post(  "/paid-engineer", insertPaidRecord );
+router.post( "/addpaid", insertPaidRecord);
+
+
 
 router.get( "/checkhealth", checkhealth );
 router.get("/paid-records", getAllPaidRecords);
