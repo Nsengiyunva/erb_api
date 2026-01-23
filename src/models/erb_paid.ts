@@ -12,6 +12,10 @@ export class ERBPaid extends Model {
   public base_field!: string;
   public issue_date!: string;
   public period!: string;
+  public email_status!: string;
+  public purpose!: string;
+  public amount_paid!: string;
+  public year_paid!: string;
 }
 
 ERBPaid.init(

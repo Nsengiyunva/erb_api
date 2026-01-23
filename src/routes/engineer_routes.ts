@@ -5,7 +5,8 @@ import path from "path";
 import { uploadCSV } from "../middleware/uploadCSV";
 import { importEngineersFromCsv, checkhealth, importPaidList,  getAllPaidRecords,
     getPaidRecordById,
-    updateERBPaid, insertEngineers, addEngineer } from "../controllers/engineer_controller";
+    updateERBPaid, insertEngineers, addEngineer, 
+    insertPaidRecord} from "../controllers/engineer_controller";
 
 const router = Router();
 
@@ -20,6 +21,8 @@ router.post( "/pull-paid-list", uploadCSV, importPaidList);
 router.post( "/add-engineers", insertEngineers);
 
 router.post( "/engineer", addEngineer );
+
+router.post(  "/paid-engineer", insertPaidRecord );
 
 router.get( "/checkhealth", checkhealth );
 router.get("/paid-records", getAllPaidRecords);

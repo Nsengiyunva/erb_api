@@ -292,3 +292,67 @@ export async function addEngineer( req: Request, res: Response ) {
 }
 
 
+//insert one paid record
+export const insertPaidRecord =  async (  req: Request, res: Response ) =>  {
+  try {
+
+    // data: {
+    //   record_no?: number;
+    //   reg_no?: string;
+    //   name: string;
+    //   specialization?: string;
+    //   license_no: string;
+    //   email_address?: string;
+    //   base_field?: string;
+    //   issue_date?: string;
+    //   period?: string;
+    //   license_status?: number;
+    //   category?: string;
+    //   amount_paid?: string;
+    //   year_paid?: string;
+    //   email_status?: string;
+    //   purpose?: string;
+    // }
+
+    const { data } = req.body;
+
+    const record = await ERBPaid.create({
+      record_no: data.record_no ?? null,
+      reg_no: data.reg_no ?? null,
+      name: data.name,
+      specialization: data.specialization ?? null,
+      license_no: data.license_no,
+      email_address: data.email_address ?? null,
+      base_field: data.base_field ?? null,
+      issue_date: data.issue_date ?? null,
+      period: data.period ?? null,
+      license_status: data.license_status ?? null,
+      category: data.category ?? null,
+      amount_paid: data.amount_paid ?? null,
+      year_paid: data.year_paid ?? null,
+      email_status: data.email_status ?? null,
+      purpose: data.purpose ?? null,
+    });
+
+    // return {
+    //   success: true,
+    //   message: 'Paid record inserted successfully',
+    //   data: record,
+    // };
+    return res.status(200).json(
+      { success: true, message: "Engineers inserted successfully!", data: record }
+    );
+  } catch (error: any) {
+    // console.error('Insert ERBPaid failed:', error);
+    // return {
+    //   success: false,
+    //   message: error.message,
+    // };
+    return res.status(500).json(
+      { success: false, err: error }
+    );
+  }
+}
+
+
+

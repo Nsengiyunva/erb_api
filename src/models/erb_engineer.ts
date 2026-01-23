@@ -87,20 +87,6 @@ ERBEngineer.init(
       allowNull: true,
     },
 
-    amount_paid: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-
-    purpose: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-
-    email_status: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    }, 
 
     created_at: {
       type: DataTypes.DATE,
