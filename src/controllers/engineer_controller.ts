@@ -246,10 +246,49 @@ export const checkhealth  = async ( req: Request, res: Response ) => {
 export const insertEngineers =  async ( req: Request, res: Response ) => {
   try {
     await ERBEngineer.bulkCreate( engineers );
-    return { success: true, message: "Engineers inserted successfully!" };
+    return res.status(200).json(
+      { success: true, message: "Engineers inserted successfully!" }
+    );
   } catch (err) {
-    console.error("Error inserting engineers:", err);
-    return { success: false, message: err };
+    // console.error("Error inserting engineers:", err);
+    // return { success: false, message: err };
+    return res.status(500).json(
+      { success: false, err: err }
+    );
   }
 }
+
+export async function addEngineer( req: Request, res: Response ) {
+
+  const { engineer } =  req.body
+
+  try {
+    const record = await ERBEngineer.create({
+      reg_date: engineer.reg_date,
+      organisation: engineer.organisation,
+      reg_no: engineer.reg_no,
+      country: engineer.country,
+      name: engineer.name,
+      gender: engineer.gender ?? null,
+      field: engineer.field ?? null,
+      address: engineer.address ?? null,
+      phones: engineer.phones ?? null,
+      emails: engineer.emails ?? null,
+      uipe_number: engineer.uipe_number ?? null,
+      qualification: engineer.qualification ?? null,
+      amount_paid: engineer.amount_paid ?? null,
+      purpose: engineer.purpose ?? null,
+    });
+
+    return res.status(201).json(
+      { success: true, message: "Engineer inserted successfully!",  data: record, }
+    );
+  } catch (err: any) {
+    // console.error('Error inserting engineer:', err);
+    return res.status(500).json(
+      { success: false, message: err.message }
+    );
+  }
+}
+
 
