@@ -16,7 +16,7 @@ export const authenticate = (
     res.status(401).json({ message: "Unauthorized" });
     return;
   }
-
+// 
   const token = authHeader.split(" ")[1];
 
   try {
@@ -30,4 +30,5 @@ export const authenticate = (
   } catch (error) {
     res.status(403).json({ message: "Invalid token" });
   }
-};
+}
+

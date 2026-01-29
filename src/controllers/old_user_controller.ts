@@ -5,9 +5,9 @@ import fs from 'fs';
 import bcrypt from 'bcryptjs';
 import pLimit from 'p-limit';
 
-/**
- * Import CSV users in chunks
- */
+import { AuthenticatedRequest } from "../middleware/authenticate";
+
+
 export const importCSV = async (req: Request, res: Response) => {
   if (!req.file)
     return res.status(400).json({ message: 'CSV file required' });
@@ -42,24 +42,21 @@ export const importCSV = async (req: Request, res: Response) => {
           await OldUser.bulkCreate(hashedChunk, { ignoreDuplicates: true });
           count += hashedChunk.length;
 
-          console.log(`Processed ${count} rows...`);
+          // console.log(`Processed ${count} rows...`);
         }
 
         res.json({ message: `CSV imported successfully: ${count} rows` });
       } catch (err) {
-        console.error('Error importing CSV:', err);
+        // console.error('Error importing CSV:', err);
         res.status(500).json({ message: 'Error importing CSV', error: err instanceof Error ? err.message : err });
       }
     })
     .on('error', (err) => {
-      console.error('CSV read error:', err);
+      // console.error('CSV read error:', err);
       res.status(500).json({ message: 'Error reading CSV', error: err instanceof Error ? err.message : err });
     });
-};
+}
 
-/**
- * Update user by ID
- */
 export const updateUser = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -71,13 +68,6 @@ export const updateUser = async (req: Request, res: Response) => {
         message: 'User ID is required',
       });
     }
-    // if (!email) {
-    //   return res.status(400).json({ success: false, message: 'Email Address is Required' });
-    // }
-    // const user = await OldUser.findOne({ where: { email } });
-
-    // Prevent updating primary key
-    // if (req.body.id) delete req.body.id;
 
     // Find the user
     const user = await OldUser.findByPk(id);
@@ -145,6 +135,77 @@ export const updateUser = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to update user',
+      error: error instanceof Error ? error.message : error,
+    });
+  }
+}
+
+export const getUserById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required',
+      });
+    }
+
+    const user = await OldUser.findByPk(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: user,
+    });
+  } catch (error) {
+    console.error('❌ Get user error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch user',
+      error: error instanceof Error ? error.message : error,
+    });
+  }
+}
+
+/**
+ * Get current authenticated user
+ * Assumes you have middleware that sets req.userId from JWT
+ */
+export const getCurrentUser = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    // Extract user ID from the JWT payload
+    const userId = (req.user as any)?.id || (req.user as any)?.sub;
+
+    if (!userId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized: No user ID found" });
+    }
+
+    const user = await OldUser.findByPk(userId);
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    return res.status(200).json({ success: true, data: user });
+  } catch (error) {
+    // console.error("❌ Get current user error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch user",
       error: error instanceof Error ? error.message : error,
     });
   }
