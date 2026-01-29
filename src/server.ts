@@ -31,13 +31,6 @@ app.use(cors({
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
 
-// const uploadDir = path.join(process.cwd(), "/var/ugpass/destination");
-
-// function findFileByRegistration(regNo: any) {
-//   const files = fs.readdirSync(uploadDir);
-//   return files.find(file => file.includes(`_${regNo}`));
-// }
-
 
 
 

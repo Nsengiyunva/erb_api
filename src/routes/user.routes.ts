@@ -8,6 +8,6 @@ const router = Router();
 router.post('/import', upload.single('file'), importCSV);
 
 //update user
-router.put('/users/:id', updateUser);
+router.put('/:id', updateUser);
 
 export default router;
