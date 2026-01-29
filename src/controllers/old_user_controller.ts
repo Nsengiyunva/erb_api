@@ -5,8 +5,12 @@ import fs from 'fs';
 import bcrypt from 'bcryptjs';
 import pLimit from 'p-limit';
 
+/**
+ * Import CSV users in chunks
+ */
 export const importCSV = async (req: Request, res: Response) => {
-  if (!req.file) return res.status(400).json({ message: 'CSV file required' });
+  if (!req.file)
+    return res.status(400).json({ message: 'CSV file required' });
 
   const chunkSize = 100;
   const rowsQueue: any[] = [];
@@ -25,14 +29,16 @@ export const importCSV = async (req: Request, res: Response) => {
           // Hash passwords in parallel (limited concurrency)
           const hashedChunk = await Promise.all(
             chunk.map((row) =>
-              limit(async () => ({
-                ...row,
-                password: await bcrypt.hash(row.password, 10),
-              }))
+              limit(async () => {
+                return {
+                  ...row,
+                  password: await bcrypt.hash(row.password, 10),
+                };
+              })
             )
           );
 
-          // Bulk insert
+          // Bulk insert (ignore duplicates)
           await OldUser.bulkCreate(hashedChunk, { ignoreDuplicates: true });
           count += hashedChunk.length;
 
@@ -42,15 +48,18 @@ export const importCSV = async (req: Request, res: Response) => {
         res.json({ message: `CSV imported successfully: ${count} rows` });
       } catch (err) {
         console.error('Error importing CSV:', err);
-        res.status(500).json({ message: 'Error importing CSV' });
+        res.status(500).json({ message: 'Error importing CSV', error: err instanceof Error ? err.message : err });
       }
     })
     .on('error', (err) => {
       console.error('CSV read error:', err);
-      res.status(500).json({ message: 'Error reading CSV' });
+      res.status(500).json({ message: 'Error reading CSV', error: err instanceof Error ? err.message : err });
     });
-}
+};
 
+/**
+ * Update user by ID
+ */
 export const updateUser = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -65,7 +74,7 @@ export const updateUser = async (req: Request, res: Response) => {
     // Prevent updating primary key
     if (req.body.id) delete req.body.id;
 
-    // Find the user by primary key
+    // Find the user
     const user = await OldUser.findByPk(id);
 
     if (!user) {
@@ -75,15 +84,41 @@ export const updateUser = async (req: Request, res: Response) => {
       });
     }
 
-    // Filter out undefined values to avoid Sequelize errors
+    // Only allow certain fields to be updated
+    const allowedFields = [
+      'first_name',
+      'surname',
+      'other_names',
+      'telephone',
+      'dob',
+      'gender',
+      'company_name',
+      'address',
+      'country',
+      'type',
+      'email',
+      'birth_place',
+      'licence_no',
+      'belongs_to',
+      'last_name',
+      'phone_no',
+      'registered',
+      'category',
+      'name',
+      'status',
+      'user_type',
+      'user_level',
+      'password'
+    ];
+
     const updates: Partial<typeof req.body> = {};
-    Object.keys(req.body).forEach(key => {
-      if (req.body[key] !== undefined) {
+    Object.keys(req.body).forEach((key) => {
+      if (allowedFields.includes(key) && req.body[key] !== undefined) {
         updates[key] = req.body[key];
       }
     });
 
-    // Only update if there’s something to update
+    // No valid fields to update
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({
         success: false,
@@ -91,8 +126,8 @@ export const updateUser = async (req: Request, res: Response) => {
       });
     }
 
-    // Update the user
-    await user.update(updates);
+    // Update user
+    await user.update(updates); // password hashing is handled automatically by your model hooks
 
     return res.status(200).json({
       success: true,
@@ -108,4 +143,4 @@ export const updateUser = async (req: Request, res: Response) => {
       error: error instanceof Error ? error.message : error,
     });
   }
-}
+};
