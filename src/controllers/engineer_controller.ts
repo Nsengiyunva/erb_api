@@ -93,7 +93,7 @@ export const importEngineersFromCsv = async (req: Request, res: Response) => {
       // data: records,
     });
   } catch (error) {
-    console.error("CSV Import Error:", error);
+    // console.error("CSV Import Error:", error);
     return res.status(500).json({ message: "Error importing CSV", error });
   }
 }
@@ -121,18 +121,6 @@ export const importPaidList = async (req: Request, res: Response) => {
       "reg_no",
       "name",
     ];
-
-    // Validate
-    // for (const row of records) {
-    //   for (const field of requiredFields) {
-    //     if (!row[field as keyof EngineerCsvRow]) {
-    //       return res.status(400).json({
-    //         message: `Missing required field: ${field}`,
-    //         row,
-    //       });
-    //     }
-    //   }
-    // }
 
     const inserted = [];
 

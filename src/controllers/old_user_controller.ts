@@ -49,4 +49,40 @@ export const importCSV = async (req: Request, res: Response) => {
       console.error('CSV read error:', err);
       res.status(500).json({ message: 'Error reading CSV' });
     });
-};
+}
+
+export const updateUser = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Prevent updating primary key
+    delete req.body.id;
+
+    const user = await OldUser.findByPk(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Update only provided fields
+    await user.update(req.body);
+
+    return res.status(200).json({
+      success: true,
+      message: 'User updated successfully',
+      data: user,
+    });
+
+  } catch (error) {
+    console.error('❌ Update user error:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update user',
+      error: error,
+    });
+  }
+}
