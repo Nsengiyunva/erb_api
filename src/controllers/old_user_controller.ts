@@ -55,9 +55,17 @@ export const updateUser = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    // Prevent updating primary key
-    delete req.body.id;
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required',
+      });
+    }
 
+    // Prevent updating primary key
+    if (req.body.id) delete req.body.id;
+
+    // Find the user by primary key
     const user = await OldUser.findByPk(id);
 
     if (!user) {
@@ -67,22 +75,37 @@ export const updateUser = async (req: Request, res: Response) => {
       });
     }
 
-    // Update only provided fields
-    await user.update(req.body);
+    // Filter out undefined values to avoid Sequelize errors
+    const updates: Partial<typeof req.body> = {};
+    Object.keys(req.body).forEach(key => {
+      if (req.body[key] !== undefined) {
+        updates[key] = req.body[key];
+      }
+    });
+
+    // Only update if there’s something to update
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No valid fields to update',
+      });
+    }
+
+    // Update the user
+    await user.update(updates);
 
     return res.status(200).json({
       success: true,
       message: 'User updated successfully',
       data: user,
     });
-
   } catch (error) {
     console.error('❌ Update user error:', error);
 
     return res.status(500).json({
       success: false,
       message: 'Failed to update user',
-      error: error,
+      error: error instanceof Error ? error.message : error,
     });
   }
 }
