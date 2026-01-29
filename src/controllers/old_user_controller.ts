@@ -63,19 +63,25 @@ export const importCSV = async (req: Request, res: Response) => {
 export const updateUser = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const { licence_no } = req.body
 
-    if (!id) {
-      return res.status(400).json({
-        success: false,
-        message: 'User ID is required',
-      });
+    // if (!id) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: 'User ID is required',
+    //   });
+    // }
+    if (!licence_no) {
+      return res.status(400).json({ success: false, message: 'Licence number required' });
     }
+    
+    const user = await OldUser.findOne({ where: { licence_no } });
 
     // Prevent updating primary key
-    if (req.body.id) delete req.body.id;
+    // if (req.body.id) delete req.body.id;
 
     // Find the user
-    const user = await OldUser.findByPk(id);
+    // const user = await OldUser.findByPk(id);
 
     if (!user) {
       return res.status(404).json({

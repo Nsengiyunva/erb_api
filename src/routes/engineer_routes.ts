@@ -8,8 +8,6 @@ import { importEngineersFromCsv, checkhealth, importPaidList,  getAllPaidRecords
     updateERBPaid, insertEngineers, addEngineer, 
     insertPaidRecord} from "../controllers/engineer_controller";
 
-import { updateUser } from '../controllers/old_user_controller';
-
 const router = Router();
 
 const FILE_DIR = "/var/ugpass/destination";
@@ -34,8 +32,7 @@ router.get("/paid-records/:id", getPaidRecordById);
 
 router.put("/:id", updateERBPaid);
 
-//update user
-router.put('/users/:id', updateUser);
+
 
 
 
