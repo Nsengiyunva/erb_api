@@ -70,7 +70,7 @@ ERBPaid.init(
       allowNull: true,
     },
     license_status: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.STRING,
       allowNull: true,
     },
     category: {
