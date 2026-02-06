@@ -82,9 +82,6 @@ router.put("/:id", updateERBPaid);
 // });
 
 
-const STREAM_HIGH_WATER_MARK = 64 * 1024; // 64KB
-const STREAM_CHUNK_SIZE = 1 * 1024 * 1024; // 1MB
-
 interface DisplayParams {
   registrationNo: string;
 }
@@ -112,58 +109,14 @@ const displayPdf: RequestHandler<DisplayParams> = async (req, res) => {
 
     if (!stat) return;
 
-    const fileSize = stat.size;
-    const range = req.headers.range;
+    res.status(200).set({
+      "Content-Type": "application/pdf",
+      "Content-Length": stat.size.toString(),
+      "Content-Disposition": `attachment; filename="${registrationNo}.pdf"`,
+      "Cache-Control": "no-store",
+    });
 
-    if (range) {
-      const match = range.match(/bytes=(\d*)-(\d*)/);
-
-      if (!match) {
-        res.status(416)
-          .set("Content-Range", `bytes */${fileSize}`)
-          .end();
-        return;
-      }
-
-      const start = match[1] ? parseInt(match[1], 10) : 0;
-      const end = match[2]
-        ? parseInt(match[2], 10)
-        : Math.min(start + STREAM_CHUNK_SIZE - 1, fileSize - 1);
-
-      if (start >= fileSize || end >= fileSize || start > end) {
-        res.status(416)
-          .set("Content-Range", `bytes */${fileSize}`)
-          .end();
-        return;
-      }
-
-      res.status(206).set({
-        "Content-Range": `bytes ${start}-${end}/${fileSize}`,
-        "Accept-Ranges": "bytes",
-        "Content-Length": (end - start + 1).toString(),
-        "Content-Type": "application/pdf",
-        "Content-Disposition": "inline",
-        "Cache-Control": "public, max-age=31536000",
-      });
-
-      stream = fs.createReadStream(filePath, {
-        start,
-        end,
-        highWaterMark: STREAM_HIGH_WATER_MARK,
-      });
-    } else {
-      res.status(200).set({
-        "Content-Length": fileSize.toString(),
-        "Content-Type": "application/pdf",
-        "Content-Disposition": "inline",
-        "Accept-Ranges": "bytes",
-        "Cache-Control": "public, max-age=31536000",
-      });
-
-      stream = fs.createReadStream(filePath, {
-        highWaterMark: STREAM_HIGH_WATER_MARK,
-      });
-    }
+    stream = fs.createReadStream(filePath);
 
     // Client disconnect
     req.on("close", () => {
@@ -172,9 +125,9 @@ const displayPdf: RequestHandler<DisplayParams> = async (req, res) => {
       }
     });
 
-    // Stream errors
+    // Stream error
     stream.on("error", (err) => {
-      console.error("PDF stream error:", err);
+      console.error("PDF download stream error:", err);
       if (!res.headersSent) {
         res.status(500).end();
       }
@@ -182,7 +135,7 @@ const displayPdf: RequestHandler<DisplayParams> = async (req, res) => {
 
     stream.pipe(res);
   } catch (err) {
-    console.error("PDF handler error:", err);
+    console.error("PDF download handler error:", err);
     if (!res.headersSent) {
       res.status(500).json({ message: "Internal server error" });
     }
@@ -190,8 +143,6 @@ const displayPdf: RequestHandler<DisplayParams> = async (req, res) => {
 };
 
 router.get("/display/:registrationNo", displayPdf);
-
-
 
 
 export default router;
