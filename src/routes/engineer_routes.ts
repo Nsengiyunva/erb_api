@@ -1,6 +1,7 @@
-import { Router } from "express";
+import { RequestHandler, Router } from "express";
 import fs from "fs";
 import path from "path";
+import { promises as fsPromises } from 'fs';
 // import { authenticate } from "../middleware/authenticate";
 import { uploadCSV } from "../middleware/uploadCSV";
 import { importEngineersFromCsv, checkhealth, importPaidList,  getAllPaidRecords,
@@ -80,67 +81,115 @@ router.put("/:id", updateERBPaid);
 //   }
 // });
 
-router.get("/display/:registrationNo", async (req, res) => {
+
+const STREAM_HIGH_WATER_MARK = 64 * 1024; // 64KB
+const STREAM_CHUNK_SIZE = 1 * 1024 * 1024; // 1MB
+
+interface DisplayParams {
+  registrationNo: string;
+}
+
+const displayPdf: RequestHandler<DisplayParams> = async (req, res) => {
+  let stream: fs.ReadStream | null = null;
+
   try {
     const { registrationNo } = req.params;
 
+    if (!registrationNo || !/^[a-zA-Z0-9_-]+$/.test(registrationNo)) {
+      res.status(400).json({ message: "Invalid registration number" });
+      return;
+    }
+
     const filePath = path.join(FILE_DIR, `${registrationNo}.pdf`);
 
-    // Single FS call
-    const stat = await fs.promises.stat(filePath);
-    const fileSize = stat.size;
+    const stat = await fsPromises.stat(filePath).catch((err: NodeJS.ErrnoException) => {
+      if (err.code === "ENOENT") {
+        res.status(404).json({ message: "File not found" });
+        return null;
+      }
+      throw err;
+    });
 
+    if (!stat) return;
+
+    const fileSize = stat.size;
     const range = req.headers.range;
 
     if (range) {
       const match = range.match(/bytes=(\d*)-(\d*)/);
 
       if (!match) {
-        return res.status(416).send("Invalid range");
-      }
-
-      let start = match[1] ? parseInt(match[1], 10) : 0;
-      let end = match[2] ? parseInt(match[2], 10) : fileSize - 1;
-
-      // Validate range
-      if (start >= fileSize || end >= fileSize || start > end) {
-        return res
-          .status(416)
+        res.status(416)
           .set("Content-Range", `bytes */${fileSize}`)
           .end();
+        return;
       }
 
-      res.writeHead(206, {
+      const start = match[1] ? parseInt(match[1], 10) : 0;
+      const end = match[2]
+        ? parseInt(match[2], 10)
+        : Math.min(start + STREAM_CHUNK_SIZE - 1, fileSize - 1);
+
+      if (start >= fileSize || end >= fileSize || start > end) {
+        res.status(416)
+          .set("Content-Range", `bytes */${fileSize}`)
+          .end();
+        return;
+      }
+
+      res.status(206).set({
         "Content-Range": `bytes ${start}-${end}/${fileSize}`,
         "Accept-Ranges": "bytes",
-        "Content-Length": end - start + 1,
+        "Content-Length": (end - start + 1).toString(),
         "Content-Type": "application/pdf",
         "Content-Disposition": "inline",
+        "Cache-Control": "public, max-age=31536000",
       });
 
-      const stream = fs.createReadStream(filePath, { start, end });
-      stream.pipe(res);
-
-      stream.on("error", () => res.destroy());
+      stream = fs.createReadStream(filePath, {
+        start,
+        end,
+        highWaterMark: STREAM_HIGH_WATER_MARK,
+      });
     } else {
-      res.writeHead(200, {
-        "Content-Length": fileSize,
+      res.status(200).set({
+        "Content-Length": fileSize.toString(),
         "Content-Type": "application/pdf",
         "Content-Disposition": "inline",
         "Accept-Ranges": "bytes",
+        "Cache-Control": "public, max-age=31536000",
       });
 
-      const stream = fs.createReadStream(filePath);
-      stream.pipe(res);
-
-      stream.on("error", () => res.destroy());
+      stream = fs.createReadStream(filePath, {
+        highWaterMark: STREAM_HIGH_WATER_MARK,
+      });
     }
+
+    // Client disconnect
+    req.on("close", () => {
+      if (stream && !stream.destroyed) {
+        stream.destroy();
+      }
+    });
+
+    // Stream errors
+    stream.on("error", (err) => {
+      console.error("PDF stream error:", err);
+      if (!res.headersSent) {
+        res.status(500).end();
+      }
+    });
+
+    stream.pipe(res);
   } catch (err) {
-    return res.status(404).json({ message: "File not found" });
+    console.error("PDF handler error:", err);
+    if (!res.headersSent) {
+      res.status(500).json({ message: "Internal server error" });
+    }
   }
-});
+};
 
-
+router.get("/display/:registrationNo", displayPdf);
 
 
 

@@ -6,6 +6,7 @@ import { sequelize, connectDB } from "./config/database";
 // import {  authenticate } from './middleware/authenticate'
 import filesRoutes from "./routes/files.routes";
 import cors from "cors";
+// import compression from 'compression';
 
 import fs from "fs";
 import path from "path";
@@ -30,6 +31,23 @@ app.use(cors({
    
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
+
+// app.use(compression({
+//   filter: (req: Request, res: Response ) => {
+//     if (req.headers['x-no-compression']) {
+//       return false;
+//     }
+//     return compression.filter(req, res);
+//   },
+//   level: 6
+// }));
+
+// Increase server timeout (if using Express)
+app.use((req, res, next) => {
+  req.setTimeout(60000); // 60 seconds
+  res.setTimeout(60000); // 60 seconds
+  next();
+});
 
 
 
