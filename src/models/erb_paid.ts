@@ -92,7 +92,11 @@ ERBPaid.init(
     purpose: {
       type: DataTypes.STRING,
       allowNull: true,
-    }
+    },
+    receipt_type: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
   },
   {
     sequelize,
