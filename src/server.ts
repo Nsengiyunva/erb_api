@@ -59,6 +59,6 @@ app.use('/old/users', userRoutes);
 
 
 connectDB();
-sequelize.sync().then(() => console.log("Tables synced..."));
-
+// sequelize.sync().then(() => console.log("Tables synced..."));
+console.log("ERB API MY-SERVICE")
 app.listen(PORT, () => console.log(`Server running on ${PORT}`));
