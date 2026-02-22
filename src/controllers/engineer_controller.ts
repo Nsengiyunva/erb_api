@@ -233,9 +233,11 @@ export const checkhealth  = async ( req: Request, res: Response ) => {
 
 export const insertEngineers = async (req: Request, res: Response) => {
   try {
-    const engineers = Array.isArray(req.body.engineers)
-      ? req.body
-      : [req.body];
+    // const engineers = Array.isArray(req.body)
+    //   ? req.body
+    //   : [req.body];
+
+    let engineers = req.body.engineers;
 
     if (!engineers.length) {
       return res.status(400).json({
