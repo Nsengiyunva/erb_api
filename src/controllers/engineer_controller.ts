@@ -232,6 +232,8 @@ export const checkhealth  = async ( req: Request, res: Response ) => {
 }
 
 export const insertEngineers =  async ( req: Request, res: Response ) => {
+  const [ engineers ] = req.body;
+  
   try {
     await ERBEngineer.bulkCreate( engineers );
     return res.status(200).json(

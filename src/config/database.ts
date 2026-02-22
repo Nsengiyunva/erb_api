@@ -26,8 +26,8 @@ export const connectDB = async () => {
     await sequelize.authenticate();
     console.log("ERB Database connected");
 
-    await sequelize.sync({ alter: true });
-    console.log("All ERB Models synchronized...");
+    // await sequelize.sync({ alter: true });
+    // console.log("All ERB Models synchronized...");
 
   } catch (error) {
     console.error("Unable to start server:", error);
