@@ -231,22 +231,36 @@ export const checkhealth  = async ( req: Request, res: Response ) => {
   });
 }
 
-export const insertEngineers =  async ( req: Request, res: Response ) => {
-  const [ engineers ] = req.body;
-  
+export const insertEngineers = async (req: Request, res: Response) => {
   try {
-    await ERBEngineer.bulkCreate( engineers );
-    return res.status(200).json(
-      { success: true, message: "Engineers inserted successfully!" }
-    );
-  } catch (err) {
-    // console.error("Error inserting engineers:", err);
-    // return { success: false, message: err };
-    return res.status(500).json(
-      { success: false, err: err }
-    );
+    const engineers = Array.isArray(req.body.engineers)
+      ? req.body
+      : [req.body];
+
+    if (!engineers.length) {
+      return res.status(400).json({
+        success: false,
+        message: "No engineers provided",
+      });
+    }
+
+    await ERBEngineer.bulkCreate(engineers);
+
+    return res.status(201).json({
+      success: true,
+      message: "Engineers inserted successfully!",
+    });
+
+  } catch (err: any) {
+    console.error("Insert error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message || "Failed to insert engineers",
+    });
   }
 }
+
 
 export async function addEngineer( req: Request, res: Response ) {
 
