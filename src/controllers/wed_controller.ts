@@ -7,7 +7,7 @@ export const createERBWed = async (req: Request, res: Response) => {
 
     const record = await ERBWed.create({
       ...req.body,
-      receipt_document: receiptPath,
+      receipt_document: "",
     });
 
     return res.status(201).json({
@@ -37,9 +37,9 @@ export const updateERBWed = async (req: Request, res: Response) => {
         });
       }
   
-      if (req.file) {
-        req.body.receipt_document = req.file.path;
-      }
+      // if (req.file) {
+      //   req.body.receipt_document = req.file.path;
+      // }
   
       await record.update(req.body);
   
