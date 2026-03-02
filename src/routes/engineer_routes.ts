@@ -22,8 +22,8 @@ const router = Router();
 
 const FILE_DIR = "/var/ugpass/destination";
 
-router.post("/wed/", uploadReceipt.single("receipt"), createERBWed);
-router.put("/wed/:id", uploadReceipt.single("receipt"), updateERBWed);
+router.post("/wed/", createERBWed);
+router.put("/wed/:id", updateERBWed);
 
 router.get("/wed/", getAllERBWed);
 router.get("/wed/:id", getSingleERBWed);
