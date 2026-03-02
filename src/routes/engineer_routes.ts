@@ -16,7 +16,7 @@ import { importEngineersFromCsv, checkhealth, importPaidList,  getAllPaidRecords
       getSingleERBWed,
     } from "../controllers/wed_controller";
     
-    import { uploadReceipt } from "../middleware/uploadReceipt";
+    // import { uploadReceipt } from "../middleware/uploadReceipt";
 
 const router = Router();
 
