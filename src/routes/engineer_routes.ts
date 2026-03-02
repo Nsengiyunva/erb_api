@@ -9,9 +9,24 @@ import { importEngineersFromCsv, checkhealth, importPaidList,  getAllPaidRecords
     updateERBPaid, insertEngineers, addEngineer, 
     insertPaidRecord} from "../controllers/engineer_controller";
 
+  import {
+      createERBWed,
+      updateERBWed,
+      getAllERBWed,
+      getSingleERBWed,
+    } from "../controllers/wed_controller";
+    
+    import { uploadReceipt } from "../middleware/uploadReceipt";
+
 const router = Router();
 
 const FILE_DIR = "/var/ugpass/destination";
+
+router.post("/wed/", uploadReceipt.single("receipt"), createERBWed);
+router.put("/wed/:id", uploadReceipt.single("receipt"), updateERBWed);
+
+router.get("/wed/", getAllERBWed);
+router.get("/wed/:id", getSingleERBWed);
 
 //importr engineers
 router.post("/import-csv", uploadCSV, importEngineersFromCsv);

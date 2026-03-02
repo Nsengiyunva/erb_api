@@ -302,24 +302,6 @@ export async function addEngineer( req: Request, res: Response ) {
 export const insertPaidRecord =  async (  req: Request, res: Response ) =>  {
   try {
 
-    // data: {
-    //   record_no?: number;
-    //   reg_no?: string;
-    //   name: string;
-    //   specialization?: string;
-    //   license_no: string;
-    //   email_address?: string;
-    //   base_field?: string;
-    //   issue_date?: string;
-    //   period?: string;
-    //   license_status?: number;
-    //   category?: string;
-    //   amount_paid?: string;
-    //   year_paid?: string;
-    //   email_status?: string;
-    //   purpose?: string;
-    // }
-
     const { data } = req.body;
 
     const record = await ERBPaid.create({
@@ -339,21 +321,10 @@ export const insertPaidRecord =  async (  req: Request, res: Response ) =>  {
       email_status: data.email_status ?? null,
       purpose: data.purpose ?? null,
     });
-
-    // return {
-    //   success: true,
-    //   message: 'Paid record inserted successfully',
-    //   data: record,
-    // };
     return res.status(200).json(
       { success: true, message: "Engineers inserted successfully!", data: record }
     );
   } catch (error: any) {
-    // console.error('Insert ERBPaid failed:', error);
-    // return {
-    //   success: false,
-    //   message: error.message,
-    // };
     return res.status(500).json(
       { success: false, err: error }
     );
