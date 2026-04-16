@@ -62,7 +62,11 @@ const httpRequestDuration = new client.Histogram({
 app.use((req, res, next) => {
   const end = httpRequestDuration.startTimer();
   res.on('finish', () => {
-    end({ method: req.method, route: req.path, status_code: res.statusCode });
+    end({ 
+      method: req.method, 
+      route: req.path, 
+      status_code: res.statusCode 
+    });
   });
   next();
 });
