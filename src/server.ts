@@ -40,14 +40,6 @@ app.use((req, res, next) => {
 });
 
 
-
-app.use( "/api/engineers", engineers_routes )
-app.use( "/api/auth/engineers", auth_routes )
-app.use("/api/files", filesRoutes);
-app.use('/old/users', userRoutes);
-
-
-//metrics
 const collectDefaultMetrics = client.collectDefaultMetrics;
 collectDefaultMetrics(); // CPU, memory, event loop, etc.
 
@@ -76,6 +68,16 @@ app.get('/metrics', async (req, res) => {
   res.set('Content-Type', client.register.contentType);
   res.end(await client.register.metrics());
 });
+
+
+
+app.use( "/api/engineers", engineers_routes )
+app.use( "/api/auth/engineers", auth_routes )
+app.use("/api/files", filesRoutes);
+app.use('/old/users', userRoutes);
+
+
+//metrics
 
 
 connectDB();
