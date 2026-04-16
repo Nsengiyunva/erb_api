@@ -40,6 +40,11 @@ app.use((req, res, next) => {
 });
 
 
+app.get('/metrics-test', (req, res) => {
+  res.send("metrics route hit");
+});
+
+
 const collectDefaultMetrics = client.collectDefaultMetrics;
 collectDefaultMetrics(); // CPU, memory, event loop, etc.
 

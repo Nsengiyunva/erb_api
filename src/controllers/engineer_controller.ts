@@ -227,7 +227,7 @@ export const updateERBPaid = async (req: Request, res: Response) => {
 
 export const checkhealth  = async ( req: Request, res: Response ) => {
   return res.status(200).json({
-    message: "API & Server is running...",
+    message: "DATA API & Server is running...",
   });
 }
 
