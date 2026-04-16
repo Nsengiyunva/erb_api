@@ -5,6 +5,7 @@ import auth_routes  from "./routes/authRoutes"
 import { sequelize, connectDB } from "./config/database";
 import filesRoutes from "./routes/files.routes";
 import cors from "cors";
+import client from 'prom-client'
 
 import fs from "fs";
 import path from "path";
@@ -46,6 +47,32 @@ app.use("/api/files", filesRoutes);
 app.use('/old/users', userRoutes);
 
 
+//metrics
+const collectDefaultMetrics = client.collectDefaultMetrics;
+collectDefaultMetrics(); // CPU, memory, event loop, etc.
+
+
+const httpRequestDuration = new client.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['method', 'route', 'status_code'],
+});
+
+// Middleware to track every request
+app.use((req, res, next) => {
+  const end = httpRequestDuration.startTimer();
+  res.on('finish', () => {
+    end({ method: req.method, route: req.path, status_code: res.statusCode });
+  });
+  next();
+});
+
+// Expose the /metrics endpoint
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', client.register.contentType);
+  res.end(await client.register.metrics());
+});
+
+
 connectDB();
-// sequelize.sync().then(() => console.log("Tables synced..."));
 app.listen(PORT, () => console.log(`Server running on ${PORT}`));
