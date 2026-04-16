@@ -3,10 +3,8 @@ import dotenv from "dotenv";
 import engineers_routes  from "./routes/engineer_routes"
 import auth_routes  from "./routes/authRoutes"
 import { sequelize, connectDB } from "./config/database";
-// import {  authenticate } from './middleware/authenticate'
 import filesRoutes from "./routes/files.routes";
 import cors from "cors";
-// import compression from 'compression';
 
 import fs from "fs";
 import path from "path";
@@ -31,15 +29,6 @@ app.use(cors({
    
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
-
-// app.use(compression({
-//   filter: (req: Request, res: Response ) => {
-//     if (req.headers['x-no-compression']) {
-//       return false;
-//     }
-//     return compression.filter(req, res);
-//   },
-//   level: 6
 // }));
 
 // Increase server timeout (if using Express)
@@ -51,7 +40,6 @@ app.use((req, res, next) => {
 
 
 
-
 app.use( "/api/engineers", engineers_routes )
 app.use( "/api/auth/engineers", auth_routes )
 app.use("/api/files", filesRoutes);
@@ -60,5 +48,4 @@ app.use('/old/users', userRoutes);
 
 connectDB();
 // sequelize.sync().then(() => console.log("Tables synced..."));
-console.log("ERB API MY-SERVICE")
 app.listen(PORT, () => console.log(`Server running on ${PORT}`));
