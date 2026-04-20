@@ -18,8 +18,8 @@ scrape_configs:
 
     pipeline_stages:
       - regex:
-          expression: '^(?P<ip>\\S+) - (?P<host>\\S+) - \\S+ \\[(?P<time>[^\\]]+)\\] "(?P<method>\\S+) (?P<path>\\S+) (?P<protocol>[^"]+)" (?P<status>\\d+) (?P<size>\\d+) "(?P<referer>[^"]*)" "(?P<agent>[^"]*)"'
+          expression: '^(?P<ip>\S+) - \S+ \[(?P<time>[^\]]+)\] "(?P<method>\S+) (?P<path>\S+) (?P<protocol>[^"]+)" (?P<status>\d+) (?P<size>\d+) "(?P<referer>[^"]*)" "(?P<agent>[^"]*)"'
 
       - labels:
-          host:
+          ip:
           status:
