@@ -2,7 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import engineers_routes  from "./routes/engineer_routes"
 import auth_routes  from "./routes/authRoutes"
-import { sequelize, connectDB } from "./config/database";
+import { connectDB } from "./config/database";
 import filesRoutes from "./routes/files.routes";
 import cors from "cors";
 import client from 'prom-client'
@@ -37,11 +37,6 @@ app.use((req, res, next) => {
   req.setTimeout(60000); // 60 seconds
   res.setTimeout(60000); // 60 seconds
   next();
-});
-
-
-app.get('/metrics-test', (req, res) => {
-  res.send("metrics route hit");
 });
 
 
