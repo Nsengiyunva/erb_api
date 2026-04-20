@@ -9,6 +9,7 @@ clients:
 
 scrape_configs:
   - job_name: nginx_logs
+
     static_configs:
       - targets:
           - localhost
@@ -17,9 +18,17 @@ scrape_configs:
           __path__: /var/log/nginx/access.log
 
     pipeline_stages:
-      - regex:
-          expression: '^(?P<ip>\S+) - \S+ \[(?P<time>[^\]]+)\] "(?P<method>\S+) (?P<path>\S+) (?P<protocol>[^"]+)" (?P<status>\d+) (?P<size>\d+) "(?P<referer>[^"]*)" "(?P<agent>[^"]*)"'
 
+      # Parse nginx access logs safely
+      - regex:
+          expression: '^(?P<ip>\S+) - \S+ \[(?P<time>[^\]]+)\] "(?P<method>\S+) (?P<path>\S+) (?P<protocol>[^"]+)" (?P<status>\d{3}) (?P<size>\d+) "(?P<referer>[^"]*)" "(?P<agent>[^"]*)"'
+
+      # Clean labels for Grafana queries
       - labels:
           ip:
           status:
+          method:
+
+      # Optional: reduce noise
+      - drop:
+          expression: ".*health.*"
