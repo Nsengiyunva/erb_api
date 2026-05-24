@@ -150,16 +150,52 @@ export const importPaidList = async (req: Request, res: Response) => {
   }
 }
 
+// export const getAllPaidRecords = async (req: Request, res: Response) => {
+//   try {
+//     const records = await ERBPaid.findAll({
+//       order: [["id", "DESC"]],
+//     });
+
+//     return res.status(200).json({
+//       success: true,
+//       count: records.length,
+//       data: records,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching paid records:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Internal server error fetching paid records",
+//     });
+//   }
+// }
+
 export const getAllPaidRecords = async (req: Request, res: Response) => {
   try {
-    const records = await ERBPaid.findAll({
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = 10;
+    const offset = (page - 1) * limit;
+
+    const { count, rows: records } = await ERBPaid.findAndCountAll({
       order: [["id", "DESC"]],
+      limit,
+      offset,
     });
+
+    const totalPages = Math.ceil(count / limit);
 
     return res.status(200).json({
       success: true,
-      count: records.length,
+      count,
       data: records,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalRecords: count,
+        perPage: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
     });
   } catch (error) {
     console.error("Error fetching paid records:", error);
