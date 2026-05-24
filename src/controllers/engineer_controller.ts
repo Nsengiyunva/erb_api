@@ -200,13 +200,64 @@ export const getPaidRecordsSummary = async (req: Request, res: Response) => {
   }
 }
 
+// export const getAllPaidRecords = async (req: Request, res: Response) => {
+//   try {
+//     const page = parseInt(req.query.page as string) || 1;
+//     const limit = 10;
+//     const offset = (page - 1) * limit;
+//     const search = req.query.search as string;
+//     const specialization = req.query.specialization as string;
+
+//     const where: any = { license_status: 'SIGNED' };
+
+//     if (specialization) {
+//       where.specialization = specialization;
+//     }
+
+//     if (search) {
+//       where[Op.or] = [
+//         { name: { [Op.iLike]: `%${search}%` } },
+//         { email_address: { [Op.iLike]: `%${search}%` } },
+//         { license_no: { [Op.iLike]: `%${search}%` } },
+//         { reg_no: { [Op.iLike]: `%${search}%` } },
+//         { specialization: { [Op.iLike]: `%${search}%` } },
+//       ];
+//     }
+
+//     const { count, rows: records } = await ERBPaid.findAndCountAll({
+//       where,
+//       order: [['id', 'DESC']],
+//       limit,
+//       offset,
+//     });
+
+//     return res.status(200).json({
+//       success: true,
+//       count,
+//       data: records,
+//       pagination: {
+//         currentPage: page,
+//         totalPages: Math.ceil(count / limit),
+//         totalRecords: count,
+//         perPage: limit,
+//         hasNextPage: page < Math.ceil(count / limit),
+//         hasPrevPage: page > 1,
+//       },
+//     });
+//   } catch (error) {
+//     console.error('Error fetching paid records:', error);
+//     return res.status(500).json({ success: false, message: 'Internal server error' });
+//   }
+// }
+
 export const getAllPaidRecords = async (req: Request, res: Response) => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = 10;
-    const offset = (page - 1) * limit;
-    const search = req.query.search as string;
+    const page           = parseInt(req.query.page as string) || 1;
+    const limit          = 10;
+    const offset         = (page - 1) * limit;
+    const search         = req.query.search as string;
     const specialization = req.query.specialization as string;
+    const emailStatus    = req.query.email_status as string;   // ← ADD THIS
 
     const where: any = { license_status: 'SIGNED' };
 
@@ -214,12 +265,23 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
       where.specialization = specialization;
     }
 
+    // ← ADD THIS BLOCK
+    if (emailStatus === 'EMAIL SENT') {
+      where.email_status = 'EMAIL SENT';
+    } else if (emailStatus === 'NOT SENT') {
+      where[Op.or] = [
+        { email_status: { [Op.ne]: 'EMAIL SENT' } },
+        { email_status: null },
+        { email_status: '' },
+      ];
+    }
+
     if (search) {
       where[Op.or] = [
-        { name: { [Op.iLike]: `%${search}%` } },
-        { email_address: { [Op.iLike]: `%${search}%` } },
-        { license_no: { [Op.iLike]: `%${search}%` } },
-        { reg_no: { [Op.iLike]: `%${search}%` } },
+        { name:           { [Op.iLike]: `%${search}%` } },
+        { email_address:  { [Op.iLike]: `%${search}%` } },
+        { license_no:     { [Op.iLike]: `%${search}%` } },
+        { reg_no:         { [Op.iLike]: `%${search}%` } },
         { specialization: { [Op.iLike]: `%${search}%` } },
       ];
     }
@@ -236,12 +298,12 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
       count,
       data: records,
       pagination: {
-        currentPage: page,
-        totalPages: Math.ceil(count / limit),
+        currentPage:  page,
+        totalPages:   Math.ceil(count / limit),
         totalRecords: count,
-        perPage: limit,
-        hasNextPage: page < Math.ceil(count / limit),
-        hasPrevPage: page > 1,
+        perPage:      limit,
+        hasNextPage:  page < Math.ceil(count / limit),
+        hasPrevPage:  page > 1,
       },
     });
   } catch (error) {
