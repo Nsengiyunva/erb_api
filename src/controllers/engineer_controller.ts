@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { parse } from "csv-parse/sync";
 import { ERBEngineer,  ERBPaid } from "../models";
+import { Op } from 'sequelize';
 
 import { engineers } from './fixtures'
 
@@ -170,19 +171,65 @@ export const importPaidList = async (req: Request, res: Response) => {
 //   }
 // }
 
+export const getPaidRecordsSummary = async (req: Request, res: Response) => {
+  try {
+    const records = await ERBPaid.findAll({
+      attributes: ['base_field', 'specialization', 'license_status'],
+      where: { license_status: 'SIGNED' }
+    });
+
+    const summary = {
+      total: records.length,
+      byType: {
+        permanent: records.filter(r => r.base_field === 'PERMANENT').length,
+        temporary: records.filter(r => r.base_field === 'TEMPORARY').length,
+        technologists: records.filter(r => r.base_field === 'TECHNOLOGIST').length,
+        technicians: records.filter(r => r.base_field === 'TECHNICIAN').length,
+      },
+      bySpecialization: records.reduce((acc, r) => {
+        const spec = r.specialization?.trim();
+        if (spec) acc[spec] = (acc[spec] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>)
+    };
+
+    return res.status(200).json({ success: true, data: summary });
+  } catch (error) {
+    console.error('Error fetching summary:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+}
+
 export const getAllPaidRecords = async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = 10;
     const offset = (page - 1) * limit;
+    const search = req.query.search as string;
+    const specialization = req.query.specialization as string;
+
+    const where: any = { license_status: 'SIGNED' };
+
+    if (specialization) {
+      where.specialization = specialization;
+    }
+
+    if (search) {
+      where[Op.or] = [
+        { name: { [Op.iLike]: `%${search}%` } },
+        { email_address: { [Op.iLike]: `%${search}%` } },
+        { license_no: { [Op.iLike]: `%${search}%` } },
+        { reg_no: { [Op.iLike]: `%${search}%` } },
+        { specialization: { [Op.iLike]: `%${search}%` } },
+      ];
+    }
 
     const { count, rows: records } = await ERBPaid.findAndCountAll({
-      order: [["id", "DESC"]],
+      where,
+      order: [['id', 'DESC']],
       limit,
       offset,
     });
-
-    const totalPages = Math.ceil(count / limit);
 
     return res.status(200).json({
       success: true,
@@ -190,19 +237,16 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
       data: records,
       pagination: {
         currentPage: page,
-        totalPages,
+        totalPages: Math.ceil(count / limit),
         totalRecords: count,
         perPage: limit,
-        hasNextPage: page < totalPages,
+        hasNextPage: page < Math.ceil(count / limit),
         hasPrevPage: page > 1,
       },
     });
   } catch (error) {
-    console.error("Error fetching paid records:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error fetching paid records",
-    });
+    console.error('Error fetching paid records:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 }
 

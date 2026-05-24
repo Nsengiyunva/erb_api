@@ -7,7 +7,8 @@ import { uploadCSV } from "../middleware/uploadCSV";
 import { importEngineersFromCsv, checkhealth, importPaidList,  getAllPaidRecords,
     getPaidRecordById,
     updateERBPaid, insertEngineers, addEngineer, 
-    insertPaidRecord} from "../controllers/engineer_controller";
+    insertPaidRecord,
+    getPaidRecordsSummary} from "../controllers/engineer_controller";
 
   import {
       createERBWed,
@@ -43,7 +44,9 @@ router.post( "/addpaid", insertPaidRecord);
 
 
 router.get( "/checkhealth", checkhealth );
-router.get("/paid-records", getAllPaidRecords);
+// router.get("/paid-records", getAllPaidRecords);
+router.get('/paid-records/summary', getPaidRecordsSummary);
+router.get('/paid-records', getAllPaidRecords);
 router.get("/paid-records/:id", getPaidRecordById);
 
 router.put("/:id", updateERBPaid);
