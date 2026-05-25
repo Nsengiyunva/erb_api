@@ -55,18 +55,6 @@ export const importEngineersFromCsv = async (req: Request, res: Response) => {
       "name",
     ];
 
-    // Validate
-    // for (const row of records) {
-    //   for (const field of requiredFields) {
-    //     if (!row[field as keyof EngineerCsvRow]) {
-    //       return res.status(400).json({
-    //         message: `Missing required field: ${field}`,
-    //         row,
-    //       });
-    //     }
-    //   }
-    // }
-
     const inserted = [];
 
     for (const row of records) {
@@ -98,7 +86,6 @@ export const importEngineersFromCsv = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Error importing CSV", error });
   }
 }
-
 
 export const importPaidList = async (req: Request, res: Response) => {
   try {
@@ -151,26 +138,6 @@ export const importPaidList = async (req: Request, res: Response) => {
   }
 }
 
-// export const getAllPaidRecords = async (req: Request, res: Response) => {
-//   try {
-//     const records = await ERBPaid.findAll({
-//       order: [["id", "DESC"]],
-//     });
-
-//     return res.status(200).json({
-//       success: true,
-//       count: records.length,
-//       data: records,
-//     });
-//   } catch (error) {
-//     console.error("Error fetching paid records:", error);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Internal server error fetching paid records",
-//     });
-//   }
-// }
-
 export const getPaidRecordsSummary = async (req: Request, res: Response) => {
   try {
     const records = await ERBPaid.findAll({
@@ -199,130 +166,6 @@ export const getPaidRecordsSummary = async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 }
-
-// export const getAllPaidRecords = async (req: Request, res: Response) => {
-//   try {
-//     const page = parseInt(req.query.page as string) || 1;
-//     const limit = 10;
-//     const offset = (page - 1) * limit;
-//     const search = req.query.search as string;
-//     const specialization = req.query.specialization as string;
-
-//     const where: any = { license_status: 'SIGNED' };
-
-//     if (specialization) {
-//       where.specialization = specialization;
-//     }
-
-//     if (search) {
-//       where[Op.or] = [
-//         { name: { [Op.iLike]: `%${search}%` } },
-//         { email_address: { [Op.iLike]: `%${search}%` } },
-//         { license_no: { [Op.iLike]: `%${search}%` } },
-//         { reg_no: { [Op.iLike]: `%${search}%` } },
-//         { specialization: { [Op.iLike]: `%${search}%` } },
-//       ];
-//     }
-
-//     const { count, rows: records } = await ERBPaid.findAndCountAll({
-//       where,
-//       order: [['id', 'DESC']],
-//       limit,
-//       offset,
-//     });
-
-//     return res.status(200).json({
-//       success: true,
-//       count,
-//       data: records,
-//       pagination: {
-//         currentPage: page,
-//         totalPages: Math.ceil(count / limit),
-//         totalRecords: count,
-//         perPage: limit,
-//         hasNextPage: page < Math.ceil(count / limit),
-//         hasPrevPage: page > 1,
-//       },
-//     });
-//   } catch (error) {
-//     console.error('Error fetching paid records:', error);
-//     return res.status(500).json({ success: false, message: 'Internal server error' });
-//   }
-// }
-
-// export const getAllPaidRecords = async (req: Request, res: Response) => {
-//   try {
-//     const page           = parseInt(req.query.page as string) || 1
-//     const limit          = 10
-//     const offset         = (page - 1) * limit
-//     const search         = (req.query.search as string)?.trim()
-//     const specialization = req.query.specialization as string
-//     const emailStatus    = req.query.email_status as string
-
-//     const where: any = { license_status: 'SIGNED' }
-
-//     if (specialization) {
-//       where.specialization = specialization
-//     }
-
-//     if (emailStatus === 'EMAIL SENT') {
-//       where.email_status = 'EMAIL SENT'
-//     } else if (emailStatus === 'NOT SENT') {
-//       where[Op.and] = [
-//         ...(where[Op.and] ?? []),
-//         {
-//           [Op.or]: [
-//             { email_status: null },
-//             { email_status: '' },
-//             { email_status: { [Op.not]: 'EMAIL SENT' } },  // Op.not works in MySQL
-//           ],
-//         },
-//       ]
-//     }
-
-//     // FIX: MySQL doesn't support ILIKE — use Op.like instead (case-insensitive by default
-//     // on most MySQL collations, e.g. utf8mb4_general_ci or utf8mb4_unicode_ci)
-//     if (search) {
-//       where[Op.and] = [
-//         ...(where[Op.and] ?? []),
-//         {
-//           [Op.or]: [
-//             { name:           { [Op.like]: `%${search}%` } },
-//             { email_address:  { [Op.like]: `%${search}%` } },
-//             { reg_no:         { [Op.like]: `%${search}%` } },
-//             { specialization: { [Op.like]: `%${search}%` } },
-//             { license_no:     { [Op.like]: `%${search}%` } },
-//           ],
-//         },
-//       ]
-//     }
-
-//     const { count, rows: records } = await ERBPaid.findAndCountAll({
-//       where,
-//       order: [['id', 'DESC']],
-//       limit,
-//       offset,
-//     })
-
-//     return res.status(200).json({
-//       success: true,
-//       count,
-//       data: records,
-//       pagination: {
-//         currentPage:  page,
-//         totalPages:   Math.ceil(count / limit),
-//         totalRecords: count,
-//         perPage:      limit,
-//         hasNextPage:  page < Math.ceil(count / limit),
-//         hasPrevPage:  page > 1,
-//       },
-//     })
-//   } catch (error: any) {
-//     // console.error('Error fetching paid records:', error?.message, error?.original?.message)
-//     return res.status(500).json({ success: false, message: 'Internal server error' })
-//   }
-// }
-
 
 export const getAllPaidRecords = async (req: Request, res: Response) => {
   try {
@@ -489,7 +332,6 @@ export const insertEngineers = async (req: Request, res: Response) => {
   }
 }
 
-
 export async function addEngineer( req: Request, res: Response ) {
 
   const { engineer } =  req.body
@@ -523,8 +365,6 @@ export async function addEngineer( req: Request, res: Response ) {
   }
 }
 
-
-//insert one paid record
 export const insertPaidRecord =  async (  req: Request, res: Response ) =>  {
   try {
 
@@ -556,6 +396,3 @@ export const insertPaidRecord =  async (  req: Request, res: Response ) =>  {
     );
   }
 }
-
-
-

@@ -31,6 +31,7 @@ export interface UserAttributes {
   status: string;
   user_type: string;
   user_level: string;
+  profile_picture?: string;  // ← added
 }
 
 class OldUser extends Model<UserAttributes> implements UserAttributes {
@@ -60,6 +61,7 @@ class OldUser extends Model<UserAttributes> implements UserAttributes {
   public status!: string;
   public user_type!: string;
   public user_level!: string;
+  public profile_picture!: string;  // ← added
 
   // 🔐 Password check
   public async comparePassword(plainPassword: string): Promise<boolean> {
@@ -97,7 +99,11 @@ OldUser.init(
     name: DataTypes.STRING,
     status: DataTypes.STRING,
     user_type: DataTypes.STRING,
-    user_level: DataTypes.STRING
+    user_level: DataTypes.STRING,
+    profile_picture: {           // ← added
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
   },
   {
     sequelize,
@@ -112,7 +118,6 @@ OldUser.init(
         }
       },
 
-      // 🔐 Hash on update (ONLY if changed)
       beforeUpdate: async (user: OldUser) => {
         if (user.changed('password')) {
           user.password = await bcrypt.hash(user.password, SALT_ROUNDS);

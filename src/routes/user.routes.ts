@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { importCSV, updateUser } from '../controllers/old_user_controller';
+import { importCSV, updateUser, updateUserProfile, uploadProfilePicture } from '../controllers/old_user_controller';
 import multer from 'multer';
 import { getCurrentUser } from "../controllers/old_user_controller";
 import { authenticate } from "../middleware/authenticate";
@@ -13,5 +13,6 @@ router.post('/import', upload.single('file'), importCSV);
 router.put('/:id', updateUser);
 
 router.get("/getUserDetails", authenticate, getCurrentUser);
+router.put('/update-profile/:id', uploadProfilePicture, updateUserProfile)
 
 export default router;

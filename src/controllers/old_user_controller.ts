@@ -1,11 +1,42 @@
 import { Request, Response } from 'express';
-import OldUser from '../models/old_user';
 import csv from 'csv-parser';
-import fs from 'fs';
+import path from 'path'
+import fs from 'fs'
+import multer from 'multer'
 import bcrypt from 'bcryptjs';
 import pLimit from 'p-limit';
 
+import OldUser from '../models/old_user';
 import { AuthenticatedRequest } from "../middleware/authenticate";
+
+const UPLOAD_DIR = '/home/user1/uploads/'
+
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    // const dir = path.join(__dirname, '../../uploads/profiles')
+    const dir = UPLOAD_DIR;
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    cb(null, dir)
+  },
+  filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname)
+      cb(null, `profile_${Date.now()}${ext}`)
+  },
+})
+
+export const uploadProfilePicture = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (_req, file, cb) => {
+      const allowed = ['image/jpeg', 'image/png', 'image/webp']
+      if (allowed.includes(file.mimetype)) {
+          cb(null, true)
+      } else {
+          cb(new Error('Only JPEG, PNG, and WebP images are allowed'))
+      }
+  },
+}).single('profile_picture')
 
 
 export const importCSV = async (req: Request, res: Response) => {
@@ -15,9 +46,8 @@ export const importCSV = async (req: Request, res: Response) => {
   const chunkSize = 100;
   const rowsQueue: any[] = [];
   let count = 0;
-  const limit = pLimit(5); // limit bcrypt concurrency
+  const limit = pLimit(5); 
 
-  // Step 1: Read CSV and push rows to queue
   fs.createReadStream(req.file.path)
     .pipe(csv())
     .on('data', (row) => rowsQueue.push(row))
@@ -60,7 +90,6 @@ export const importCSV = async (req: Request, res: Response) => {
 export const updateUser = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    // const { email } = req.body
 
     if (!id) {
       return res.status(400).json({
@@ -69,7 +98,6 @@ export const updateUser = async (req: Request, res: Response) => {
       });
     }
 
-    // Find the user
     const user = await OldUser.findByPk(id);
 
     if (!user) {
@@ -79,7 +107,7 @@ export const updateUser = async (req: Request, res: Response) => {
       });
     }
 
-    // Only allow certain fields to be updated
+    
     const allowedFields = [
       'first_name',
       'surname',
@@ -113,7 +141,6 @@ export const updateUser = async (req: Request, res: Response) => {
       }
     });
 
-    // No valid fields to update
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({
         success: false,
@@ -122,7 +149,7 @@ export const updateUser = async (req: Request, res: Response) => {
     }
 
     // Update user
-    await user.update(updates); // password hashing is handled automatically by your model hooks
+    await user.update(updates);
 
     return res.status(200).json({
       success: true,
@@ -174,10 +201,6 @@ export const getUserById = async (req: Request, res: Response) => {
   }
 }
 
-/**
- * Get current authenticated user
- * Assumes you have middleware that sets req.userId from JWT
- */
 export const getCurrentUser = async (
   req: AuthenticatedRequest,
   res: Response
@@ -209,4 +232,47 @@ export const getCurrentUser = async (
       error: error instanceof Error ? error.message : error,
     });
   }
-};
+}
+
+
+export const updateUserProfile = async (req: Request, res: Response) => {
+  try {
+      const { id } = req.params
+
+      const user = await OldUser.findByPk(id)
+      if (!user) {
+          return res.status(404).json({ success: false, message: 'User not found' })
+      }
+
+      const { name, address, company_name, gender, dob, birth_place } = req.body
+
+      // Only update allowed fields — email, telephone, category etc. are read-only
+      const updates: Partial<typeof user> = {}
+
+      if (name        !== undefined) updates.name         = name
+      if (address     !== undefined) updates.address      = address
+      if (company_name!== undefined) updates.company_name = company_name
+      if (gender      !== undefined) updates.gender       = gender
+      if (dob         !== undefined) updates.dob          = dob
+      if (birth_place !== undefined) updates.birth_place  = birth_place
+
+      // If a new photo was uploaded, delete the old one then store the new filename
+      if (req.file) {
+          if (user.profile_picture) {
+              const oldPath = path.join( UPLOAD_DIR, user.profile_picture)
+              if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath)
+          }
+          updates.profile_picture = req.file.filename
+      }
+
+      await user.update(updates)
+
+      return res.status(200).json({
+          success: true,
+          message: 'Profile updated successfully',
+          data: user,
+      })
+  } catch (error: any) {
+      return res.status(500).json({ success: false, message: error.message || 'Internal server error' })
+  }
+}
