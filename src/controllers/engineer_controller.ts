@@ -252,37 +252,56 @@ export const getPaidRecordsSummary = async (req: Request, res: Response) => {
 
 export const getAllPaidRecords = async (req: Request, res: Response) => {
   try {
-    const page           = parseInt(req.query.page as string) || 1;
-    const limit          = 10;
-    const offset         = (page - 1) * limit;
-    const search         = req.query.search as string;
-    const specialization = req.query.specialization as string;
+    const page           = parseInt(req.query.page as string) || 1
+    const limit          = 10
+    const offset         = (page - 1) * limit
+    const search         = (req.query.search as string)?.trim()
+    const specialization = req.query.specialization as string
+    const emailStatus    = req.query.email_status as string
 
-    const where: any = { license_status: 'SIGNED' };
+    // Base filter — always applied
+    const where: any = { license_status: 'SIGNED' }
 
+    // Specialization filter
     if (specialization) {
-      where.specialization = specialization;
+      where.specialization = specialization
     }
 
-    if (search) {
-      // Wrap in Op.and so it doesn't overwrite license_status or specialization
+    // Email status filter for tab switching
+    if (emailStatus === 'EMAIL SENT') {
+      where.email_status = 'EMAIL SENT'
+    } else if (emailStatus === 'NOT SENT') {
+      // "Not sent" records have null, empty string, or any value != "EMAIL SENT"
       where[Op.and] = [
         ...(where[Op.and] ?? []),
         {
           [Op.or]: [
-            { name:          { [Op.iLike]: `%${search}%` } },
-            { email_address: { [Op.iLike]: `%${search}%` } },
-            { reg_no:        { [Op.iLike]: `%${search}%` } },
-            { specialization:{ [Op.iLike]: `%${search}%` } },
-            // Remove license_no from search if it's not a varchar column,
-            // or cast it safely:
+            { email_status: null },
+            { email_status: '' },
+            { email_status: { [Op.notILike]: 'EMAIL SENT' } },
+          ],
+        },
+      ]
+    }
+
+    // Search filter — wrapped in Op.and so it never overwrites other conditions
+    if (search) {
+      where[Op.and] = [
+        ...(where[Op.and] ?? []),
+        {
+          [Op.or]: [
+            { name:           { [Op.iLike]: `%${search}%` } },
+            { email_address:  { [Op.iLike]: `%${search}%` } },
+            { reg_no:         { [Op.iLike]: `%${search}%` } },
+            { specialization: { [Op.iLike]: `%${search}%` } },
+            // Cast license_no to varchar in case it is stored as a non-string type
             Sequelize.where(
               Sequelize.cast(Sequelize.col('license_no'), 'varchar'),
               { [Op.iLike]: `%${search}%` }
             ),
           ],
         },
-      ];
+      ]
     }
 
     const { count, rows: records } = await ERBPaid.findAndCountAll({
@@ -290,12 +309,12 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
       order: [['id', 'DESC']],
       limit,
       offset,
-    });
+    })
 
     return res.status(200).json({
-      success:    true,
+      success: true,
       count,
-      data:       records,
+      data: records,
       pagination: {
         currentPage:  page,
         totalPages:   Math.ceil(count / limit),
@@ -304,10 +323,10 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
         hasNextPage:  page < Math.ceil(count / limit),
         hasPrevPage:  page > 1,
       },
-    });
+    })
   } catch (error) {
-    console.error('Error fetching paid records:', error);
-    return res.status(500).json({ success: false, message: 'Internal server error' });
+    console.error('Error fetching paid records:', error)
+    return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }
 
