@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { parse } from "csv-parse/sync";
 import { ERBEngineer,  ERBPaid } from "../models";
-import { Op } from 'sequelize';
+import { Sequelize, Op } from 'sequelize';
 
 import { engineers } from './fixtures'
 
@@ -257,7 +257,6 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
     const offset         = (page - 1) * limit;
     const search         = req.query.search as string;
     const specialization = req.query.specialization as string;
-    const emailStatus    = req.query.email_status as string;   // ← ADD THIS
 
     const where: any = { license_status: 'SIGNED' };
 
@@ -265,24 +264,24 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
       where.specialization = specialization;
     }
 
-    // ← ADD THIS BLOCK
-    if (emailStatus === 'EMAIL SENT') {
-      where.email_status = 'EMAIL SENT';
-    } else if (emailStatus === 'NOT SENT') {
-      where[Op.or] = [
-        { email_status: { [Op.ne]: 'EMAIL SENT' } },
-        { email_status: null },
-        { email_status: '' },
-      ];
-    }
-
     if (search) {
-      where[Op.or] = [
-        { name:           { [Op.iLike]: `%${search}%` } },
-        { email_address:  { [Op.iLike]: `%${search}%` } },
-        { license_no:     { [Op.iLike]: `%${search}%` } },
-        { reg_no:         { [Op.iLike]: `%${search}%` } },
-        { specialization: { [Op.iLike]: `%${search}%` } },
+      // Wrap in Op.and so it doesn't overwrite license_status or specialization
+      where[Op.and] = [
+        ...(where[Op.and] ?? []),
+        {
+          [Op.or]: [
+            { name:          { [Op.iLike]: `%${search}%` } },
+            { email_address: { [Op.iLike]: `%${search}%` } },
+            { reg_no:        { [Op.iLike]: `%${search}%` } },
+            { specialization:{ [Op.iLike]: `%${search}%` } },
+            // Remove license_no from search if it's not a varchar column,
+            // or cast it safely:
+            Sequelize.where(
+              Sequelize.cast(Sequelize.col('license_no'), 'varchar'),
+              { [Op.iLike]: `%${search}%` }
+            ),
+          ],
+        },
       ];
     }
 
@@ -294,9 +293,9 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
     });
 
     return res.status(200).json({
-      success: true,
+      success:    true,
       count,
-      data: records,
+      data:       records,
       pagination: {
         currentPage:  page,
         totalPages:   Math.ceil(count / limit),
