@@ -259,19 +259,15 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
     const specialization = req.query.specialization as string
     const emailStatus    = req.query.email_status as string
 
-    // Base filter — always applied
     const where: any = { license_status: 'SIGNED' }
 
-    // Specialization filter
     if (specialization) {
       where.specialization = specialization
     }
 
-    // Email status filter for tab switching
     if (emailStatus === 'EMAIL SENT') {
       where.email_status = 'EMAIL SENT'
     } else if (emailStatus === 'NOT SENT') {
-      // "Not sent" records have null, empty string, or any value != "EMAIL SENT"
       where[Op.and] = [
         ...(where[Op.and] ?? []),
         {
@@ -284,7 +280,6 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
       ]
     }
 
-    // Search filter — wrapped in Op.and so it never overwrites other conditions
     if (search) {
       where[Op.and] = [
         ...(where[Op.and] ?? []),
@@ -294,11 +289,7 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
             { email_address:  { [Op.iLike]: `%${search}%` } },
             { reg_no:         { [Op.iLike]: `%${search}%` } },
             { specialization: { [Op.iLike]: `%${search}%` } },
-            // Cast license_no to varchar in case it is stored as a non-string type
-            Sequelize.where(
-              Sequelize.cast(Sequelize.col('license_no'), 'varchar'),
-              { [Op.iLike]: `%${search}%` }
-            ),
+            { license_no:     { [Op.iLike]: `%${search}%` } },  // plain iLike — no cast
           ],
         },
       ]
@@ -312,9 +303,9 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
     })
 
     return res.status(200).json({
-      success: true,
+      success:    true,
       count,
-      data: records,
+      data:       records,
       pagination: {
         currentPage:  page,
         totalPages:   Math.ceil(count / limit),
@@ -324,9 +315,14 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
         hasPrevPage:  page > 1,
       },
     })
-  } catch (error) {
-    console.error('Error fetching paid records:', error)
-    return res.status(500).json({ success: false, message: 'Internal server error' })
+  } catch (error: any) {
+    // Log the full error so you can see exactly what Sequelize is complaining about
+    console.error('Error fetching paid records:', error?.message, error?.original?.message)
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      detail:  error?.original?.message ?? error?.message   // remove this line in production
+    })
   }
 }
 
