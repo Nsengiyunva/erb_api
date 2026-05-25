@@ -250,6 +250,80 @@ export const getPaidRecordsSummary = async (req: Request, res: Response) => {
 //   }
 // }
 
+// export const getAllPaidRecords = async (req: Request, res: Response) => {
+//   try {
+//     const page           = parseInt(req.query.page as string) || 1
+//     const limit          = 10
+//     const offset         = (page - 1) * limit
+//     const search         = (req.query.search as string)?.trim()
+//     const specialization = req.query.specialization as string
+//     const emailStatus    = req.query.email_status as string
+
+//     const where: any = { license_status: 'SIGNED' }
+
+//     if (specialization) {
+//       where.specialization = specialization
+//     }
+
+//     if (emailStatus === 'EMAIL SENT') {
+//       where.email_status = 'EMAIL SENT'
+//     } else if (emailStatus === 'NOT SENT') {
+//       where[Op.and] = [
+//         ...(where[Op.and] ?? []),
+//         {
+//           [Op.or]: [
+//             { email_status: null },
+//             { email_status: '' },
+//             { email_status: { [Op.not]: 'EMAIL SENT' } },  // Op.not works in MySQL
+//           ],
+//         },
+//       ]
+//     }
+
+//     // FIX: MySQL doesn't support ILIKE — use Op.like instead (case-insensitive by default
+//     // on most MySQL collations, e.g. utf8mb4_general_ci or utf8mb4_unicode_ci)
+//     if (search) {
+//       where[Op.and] = [
+//         ...(where[Op.and] ?? []),
+//         {
+//           [Op.or]: [
+//             { name:           { [Op.like]: `%${search}%` } },
+//             { email_address:  { [Op.like]: `%${search}%` } },
+//             { reg_no:         { [Op.like]: `%${search}%` } },
+//             { specialization: { [Op.like]: `%${search}%` } },
+//             { license_no:     { [Op.like]: `%${search}%` } },
+//           ],
+//         },
+//       ]
+//     }
+
+//     const { count, rows: records } = await ERBPaid.findAndCountAll({
+//       where,
+//       order: [['id', 'DESC']],
+//       limit,
+//       offset,
+//     })
+
+//     return res.status(200).json({
+//       success: true,
+//       count,
+//       data: records,
+//       pagination: {
+//         currentPage:  page,
+//         totalPages:   Math.ceil(count / limit),
+//         totalRecords: count,
+//         perPage:      limit,
+//         hasNextPage:  page < Math.ceil(count / limit),
+//         hasPrevPage:  page > 1,
+//       },
+//     })
+//   } catch (error: any) {
+//     // console.error('Error fetching paid records:', error?.message, error?.original?.message)
+//     return res.status(500).json({ success: false, message: 'Internal server error' })
+//   }
+// }
+
+
 export const getAllPaidRecords = async (req: Request, res: Response) => {
   try {
     const page           = parseInt(req.query.page as string) || 1
@@ -258,8 +332,10 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
     const search         = (req.query.search as string)?.trim()
     const specialization = req.query.specialization as string
     const emailStatus    = req.query.email_status as string
+    const licenseStatus  = (req.query.license_status as string)?.trim()
 
-    const where: any = { license_status: 'SIGNED' }
+    // Use the passed license_status if provided, otherwise default to 'SIGNED'
+    const where: any = { license_status: licenseStatus || 'SIGNED' }
 
     if (specialization) {
       where.specialization = specialization
@@ -274,14 +350,12 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
           [Op.or]: [
             { email_status: null },
             { email_status: '' },
-            { email_status: { [Op.not]: 'EMAIL SENT' } },  // Op.not works in MySQL
+            { email_status: { [Op.not]: 'EMAIL SENT' } },
           ],
         },
       ]
     }
 
-    // FIX: MySQL doesn't support ILIKE — use Op.like instead (case-insensitive by default
-    // on most MySQL collations, e.g. utf8mb4_general_ci or utf8mb4_unicode_ci)
     if (search) {
       where[Op.and] = [
         ...(where[Op.and] ?? []),
@@ -318,7 +392,6 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
       },
     })
   } catch (error: any) {
-    // console.error('Error fetching paid records:', error?.message, error?.original?.message)
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }
