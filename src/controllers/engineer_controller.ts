@@ -318,7 +318,7 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
       },
     })
   } catch (error: any) {
-    console.error('Error fetching paid records:', error?.message, error?.original?.message)
+    // console.error('Error fetching paid records:', error?.message, error?.original?.message)
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }
