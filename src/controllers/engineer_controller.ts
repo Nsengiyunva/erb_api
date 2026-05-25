@@ -274,22 +274,24 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
           [Op.or]: [
             { email_status: null },
             { email_status: '' },
-            { email_status: { [Op.notILike]: 'EMAIL SENT' } },
+            { email_status: { [Op.not]: 'EMAIL SENT' } },  // Op.not works in MySQL
           ],
         },
       ]
     }
 
+    // FIX: MySQL doesn't support ILIKE — use Op.like instead (case-insensitive by default
+    // on most MySQL collations, e.g. utf8mb4_general_ci or utf8mb4_unicode_ci)
     if (search) {
       where[Op.and] = [
         ...(where[Op.and] ?? []),
         {
           [Op.or]: [
-            { name:           { [Op.iLike]: `%${search}%` } },
-            { email_address:  { [Op.iLike]: `%${search}%` } },
-            { reg_no:         { [Op.iLike]: `%${search}%` } },
-            { specialization: { [Op.iLike]: `%${search}%` } },
-            { license_no:     { [Op.iLike]: `%${search}%` } },  // plain iLike — no cast
+            { name:           { [Op.like]: `%${search}%` } },
+            { email_address:  { [Op.like]: `%${search}%` } },
+            { reg_no:         { [Op.like]: `%${search}%` } },
+            { specialization: { [Op.like]: `%${search}%` } },
+            { license_no:     { [Op.like]: `%${search}%` } },
           ],
         },
       ]
@@ -303,9 +305,9 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
     })
 
     return res.status(200).json({
-      success:    true,
+      success: true,
       count,
-      data:       records,
+      data: records,
       pagination: {
         currentPage:  page,
         totalPages:   Math.ceil(count / limit),
@@ -316,13 +318,8 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
       },
     })
   } catch (error: any) {
-    // Log the full error so you can see exactly what Sequelize is complaining about
     console.error('Error fetching paid records:', error?.message, error?.original?.message)
-    return res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      detail:  error?.original?.message ?? error?.message   // remove this line in production
-    })
+    return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }
 
