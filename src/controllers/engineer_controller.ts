@@ -32,6 +32,46 @@ interface PaidCsvRow {
   period?: number;
 }
 
+
+const normalizeString = (val: unknown): string =>
+  typeof val === "string" ? val.trim() : "";
+
+/**
+ * Sanitise a single raw row into the shape expected by ERBEngineer.
+ * Accepts both snake_case (CSV/DB) and camelCase (form payload) keys.
+ */
+const sanitizeEngineerPayload = (raw: Record<string, unknown>) => ({
+  reg_date:     normalizeString(raw.reg_date     ?? raw.regDate),
+  organisation: normalizeString(raw.organisation),
+  country:      normalizeString(raw.country),
+  reg_no:       normalizeString(raw.reg_no       ?? raw.regNo),
+  name:         normalizeString(raw.name),
+  gender:       normalizeString(raw.gender)       || null,
+  field:        normalizeString(raw.field)        || null,
+  address:      normalizeString(raw.address)      || null,
+  phones:       normalizeString(raw.phones)       || null,
+  emails:       normalizeString(raw.emails)       || null,
+  uipe_number:  normalizeString(raw.uipe_number  ?? raw.uipeNumber)  || null,
+  qualification:normalizeString(raw.qualification)|| null,
+  primary_email:    normalizeString(raw.primary_email    ?? raw.primaryEmail)    || null,
+  secondary_email:  normalizeString(raw.secondary_email  ?? raw.secondaryEmail)  || null,
+  primary_contact:  normalizeString(raw.primary_contact  ?? raw.primaryContact)  || null,
+  secondary_contact:normalizeString(raw.secondary_contact?? raw.secondaryContact)|| null,
+  photo:        normalizeString(raw.photo)        || null,
+  type:         normalizeString(raw.type)         || null,
+});
+
+
+const REQUIRED_FIELDS = ["reg_date", "organisation", "country", "reg_no", "name"] as const;
+
+const validateRequired = (
+  payload: ReturnType<typeof sanitizeEngineerPayload>
+): string[] =>
+  REQUIRED_FIELDS.filter((f) => !payload[f]);
+
+
+// mthods
+
 export const importEngineersFromCsv = async (req: Request, res: Response) => {
   try {
     if (!req.file) {
@@ -332,38 +372,38 @@ export const insertEngineers = async (req: Request, res: Response) => {
   }
 }
 
-export async function addEngineer( req: Request, res: Response ) {
+// export async function addEngineer( req: Request, res: Response ) {
 
-  const { engineer } =  req.body
+//   const { engineer } =  req.body
 
-  try {
-    const record = await ERBEngineer.create({
-      reg_date: engineer.reg_date,
-      organisation: engineer.organisation,
-      reg_no: engineer.reg_no,
-      country: engineer.country,
-      name: engineer.name,
-      gender: engineer.gender ?? null,
-      field: engineer.field ?? null,
-      address: engineer.address ?? null,
-      phones: engineer.phones ?? null,
-      emails: engineer.emails ?? null,
-      uipe_number: engineer.uipe_number ?? null,
-      qualification: engineer.qualification ?? null,
-      amount_paid: engineer.amount_paid ?? null,
-      purpose: engineer.purpose ?? null,
-    });
+//   try {
+//     const record = await ERBEngineer.create({
+//       reg_date: engineer.reg_date,
+//       organisation: engineer.organisation,
+//       reg_no: engineer.reg_no,
+//       country: engineer.country,
+//       name: engineer.name,
+//       gender: engineer.gender ?? null,
+//       field: engineer.field ?? null,
+//       address: engineer.address ?? null,
+//       phones: engineer.phones ?? null,
+//       emails: engineer.emails ?? null,
+//       uipe_number: engineer.uipe_number ?? null,
+//       qualification: engineer.qualification ?? null,
+//       amount_paid: engineer.amount_paid ?? null,
+//       purpose: engineer.purpose ?? null,
+//     });
 
-    return res.status(201).json(
-      { success: true, message: "Engineer inserted successfully!",  data: record, }
-    );
-  } catch (err: any) {
-    // console.error('Error inserting engineer:', err);
-    return res.status(500).json(
-      { success: false, message: err.message }
-    );
-  }
-}
+//     return res.status(201).json(
+//       { success: true, message: "Engineer inserted successfully!",  data: record, }
+//     );
+//   } catch (err: any) {
+//     // console.error('Error inserting engineer:', err);
+//     return res.status(500).json(
+//       { success: false, message: err.message }
+//     );
+//   }
+// }
 
 export const insertPaidRecord =  async (  req: Request, res: Response ) =>  {
   try {
@@ -396,3 +436,294 @@ export const insertPaidRecord =  async (  req: Request, res: Response ) =>  {
     );
   }
 }
+
+
+// ─────────────────────────────────────────────
+// GET /engineers — list all
+// ─────────────────────────────────────────────
+export const getAllEngineers = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { search, field, type, country, page = "1", limit = "20" } = req.query;
+
+    const where: Record<string, unknown> = {};
+
+    if (search) {
+      const like = `%${search}%`;
+      where[Op.or as unknown as string] = [
+        { name:   { [Op.like]: like } },
+        { reg_no: { [Op.like]: like } },
+        { emails: { [Op.like]: like } },
+        { phones: { [Op.like]: like } },
+      ];
+    }
+
+    if (field)   where.field   = field;
+    if (type)    where.type    = type;
+    if (country) where.country = country;
+
+    const pageNum  = Math.max(1, parseInt(page as string, 10));
+    const pageSize = Math.min(100, Math.max(1, parseInt(limit as string, 10)));
+    const offset   = (pageNum - 1) * pageSize;
+
+    const { count, rows } = await ERBEngineer.findAndCountAll({
+      where,
+      limit: pageSize,
+      offset,
+      order: [["name", "ASC"]],
+    });
+
+    res.json({
+      success: true,
+      data: rows,
+      meta: {
+        total:       count,
+        page:        pageNum,
+        limit:       pageSize,
+        totalPages:  Math.ceil(count / pageSize),
+      },
+    });
+  } catch (error: any) {
+    // console.error("getAllEngineers:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch engineers.", error: error.message });
+  }
+}
+
+
+export const getEngineerById = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const engineer = await ERBEngineer.findByPk(req.params.id);
+    if (!engineer) {
+      res.status(404).json({ success: false, message: "Engineer not found." });
+      return;
+    }
+    res.json({ success: true, data: engineer });
+  } catch (error: any) {
+    console.error("getEngineerById:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch engineer.", error: error.message });
+  }
+};
+
+// ─────────────────────────────────────────────
+// POST /engineers — add single engineer
+// ─────────────────────────────────────────────
+export const addEngineer = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const payload = sanitizeEngineerPayload(req.body);
+
+    // Validate required fields
+    const missing = validateRequired(payload);
+    if (missing.length) {
+      res.status(422).json({
+        success: false,
+        message: `Missing required fields: ${missing.join(", ")}.`,
+      });
+      return;
+    }
+
+    // Prevent duplicate reg_no
+    const existing = await ERBEngineer.findOne({ where: { reg_no: payload.reg_no } });
+    if (existing) {
+      res.status(409).json({
+        success: false,
+        message: `An engineer with reg_no "${payload.reg_no}" already exists.`,
+      });
+      return;
+    }
+
+    const engineer = await ERBEngineer.create(payload as any);
+
+    res.status(201).json({
+      success: true,
+      message: "Engineer created successfully.",
+      data: engineer,
+    });
+  } catch (error: any) {
+    console.error("addEngineer:", error);
+    res.status(500).json({ success: false, message: "Failed to create engineer.", error: error.message });
+  }
+};
+
+// ─────────────────────────────────────────────
+// PUT /engineers/:id — update engineer
+// ─────────────────────────────────────────────
+export const updateEngineer = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const engineer = await ERBEngineer.findByPk(req.params.id);
+    if (!engineer) {
+      res.status(404).json({ success: false, message: "Engineer not found." });
+      return;
+    }
+
+    const payload = sanitizeEngineerPayload({ ...engineer.toJSON(), ...req.body });
+
+    // Validate required fields are not being blanked out
+    const missing = validateRequired(payload);
+    if (missing.length) {
+      res.status(422).json({
+        success: false,
+        message: `These required fields cannot be empty: ${missing.join(", ")}.`,
+      });
+      return;
+    }
+
+    // If reg_no is changing, check it isn't taken by another record
+    if (payload.reg_no !== engineer.reg_no) {
+      const conflict = await ERBEngineer.findOne({
+        where: { reg_no: payload.reg_no, id: { [Op.ne]: engineer.id } },
+      });
+      if (conflict) {
+        res.status(409).json({
+          success: false,
+          message: `reg_no "${payload.reg_no}" is already assigned to another engineer.`,
+        });
+        return;
+      }
+    }
+
+    await engineer.update(payload);
+
+    res.json({
+      success: true,
+      message: "Engineer updated successfully.",
+      data: engineer,
+    });
+  } catch (error: any) {
+    console.error("updateEngineer:", error);
+    res.status(500).json({ success: false, message: "Failed to update engineer.", error: error.message });
+  }
+};
+
+// ─────────────────────────────────────────────
+// DELETE /engineers/:id
+// ─────────────────────────────────────────────
+export const deleteEngineer = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const engineer = await ERBEngineer.findByPk(req.params.id);
+    if (!engineer) {
+      res.status(404).json({ success: false, message: "Engineer not found." });
+      return;
+    }
+    await engineer.destroy();
+    res.json({ success: true, message: "Engineer deleted successfully." });
+  } catch (error: any) {
+    console.error("deleteEngineer:", error);
+    res.status(500).json({ success: false, message: "Failed to delete engineer.", error: error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /engineers/batch-import
+//
+// Accepts:  { engineers: RawEngineer[] }
+//
+// Strategy (per-row):
+//   • Validate required fields  → skip with error
+//   • reg_no already exists     → UPDATE  (upsert)  if updateExisting=true
+//                               → skip with warning  if updateExisting=false
+//   • Otherwise                 → INSERT
+//
+// Query param: ?updateExisting=true   (default false)
+// ─────────────────────────────────────────────────────────────────────────────
+export const batchImportEngineers = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const updateExisting = req.query.updateExisting === "true";
+  const raw: unknown[] = req.body.engineers;
+
+  if (!Array.isArray(raw) || raw.length === 0) {
+    res.status(422).json({
+      success: false,
+      message: 'Request body must contain a non-empty "engineers" array.',
+    });
+    return;
+  }
+
+  const MAX_BATCH = 1000;
+  if (raw.length > MAX_BATCH) {
+    res.status(422).json({
+      success: false,
+      message: `Batch size exceeds the limit of ${MAX_BATCH} records. Split your import into smaller chunks.`,
+    });
+    return;
+  }
+
+  const results = {
+    inserted:  0,
+    updated:   0,
+    skipped:   0,
+    errors:    [] as { row: number; reg_no?: string; reason: string }[],
+  };
+
+  for (let i = 0; i < raw.length; i++) {
+    const rowNum = i + 1;
+
+    try {
+      const payload = sanitizeEngineerPayload(raw[i] as Record<string, unknown>);
+
+      // Validate required fields
+      const missing = validateRequired(payload);
+      if (missing.length) {
+        results.errors.push({
+          row: rowNum,
+          reg_no: payload.reg_no || undefined,
+          reason: `Missing required fields: ${missing.join(", ")}.`,
+        });
+        results.skipped++;
+        continue;
+      }
+
+      // Check for existing record
+      const existing = await ERBEngineer.findOne({ where: { reg_no: payload.reg_no } });
+
+      if (existing) {
+        if (updateExisting) {
+          await existing.update(payload);
+          results.updated++;
+        } else {
+          results.errors.push({
+            row: rowNum,
+            reg_no: payload.reg_no,
+            reason: `reg_no "${payload.reg_no}" already exists. Pass ?updateExisting=true to overwrite.`,
+          });
+          results.skipped++;
+        }
+        continue;
+      }
+
+      await ERBEngineer.create(payload as any);
+      results.inserted++;
+
+    } catch (err: any) {
+      console.error(`batchImport row ${rowNum}:`, err);
+      results.errors.push({
+        row: rowNum,
+        reason: err.message ?? "Unexpected error.",
+      });
+      results.skipped++;
+    }
+  }
+
+  const allFailed = results.inserted === 0 && results.updated === 0;
+
+  res.status(allFailed ? 422 : 200).json({
+    success: !allFailed,
+    message: `Import complete. Inserted: ${results.inserted}, Updated: ${results.updated}, Skipped: ${results.skipped}.`,
+    results,
+  });
+};

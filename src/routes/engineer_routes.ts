@@ -8,7 +8,12 @@ import { importEngineersFromCsv, checkhealth, importPaidList,  getAllPaidRecords
     getPaidRecordById,
     updateERBPaid, insertEngineers, addEngineer, 
     insertPaidRecord,
-    getPaidRecordsSummary} from "../controllers/engineer_controller";
+    getPaidRecordsSummary,
+    getAllEngineers,
+    batchImportEngineers,
+    getEngineerById,
+    updateEngineer,
+    deleteEngineer} from "../controllers/engineer_controller";
 
   import {
       createERBWed,
@@ -44,12 +49,22 @@ router.post( "/addpaid", insertPaidRecord);
 
 
 router.get( "/checkhealth", checkhealth );
-// router.get("/paid-records", getAllPaidRecords);
 router.get('/paid-records/summary', getPaidRecordsSummary);
 router.get('/paid-records', getAllPaidRecords);
 router.get("/paid-records/:id", getPaidRecordById);
 
 router.put("/:id", updateERBPaid);
+
+// engineers database
+router.get("/",             getAllEngineers);
+router.post("/",            addEngineer);
+router.post("/batch-import", batchImportEngineers);
+ 
+// engineers database single record
+router.get("/:id",    getEngineerById);
+router.put("/:id",    updateEngineer);
+router.delete("/:id", deleteEngineer);
+
 
 
 interface DisplayParams {

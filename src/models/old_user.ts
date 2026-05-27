@@ -100,9 +100,10 @@ OldUser.init(
     status: DataTypes.STRING,
     user_type: DataTypes.STRING,
     user_level: DataTypes.STRING,
-    profile_picture: {           // ← added
-      type: DataTypes.STRING,
+    profile_picture: {
+      type: DataTypes.STRING(255),
       allowNull: true,
+      defaultValue: null,
     },
   },
   {
