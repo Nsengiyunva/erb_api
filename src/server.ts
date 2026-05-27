@@ -6,8 +6,8 @@ import { connectDB } from "./config/database";
 import filesRoutes from "./routes/files.routes";
 import cors from "cors";
 import client from "prom-client";
-import fs from "fs";
-import path from "path";
+// import fs from "fs";
+// import path from "path";
 import userRoutes from "./routes/user.routes";
 
 dotenv.config();
