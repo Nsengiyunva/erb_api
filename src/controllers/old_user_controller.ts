@@ -428,7 +428,7 @@ export const getUserById = async (req: Request, res: Response) => {
 
     return res.status(200).json({ success: true, data: user });
   } catch (error) {
-    console.error('❌ Get user error:', error);
+    // console.error('❌ Get user error:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to fetch user',
@@ -460,12 +460,9 @@ export const getCurrentUser = async (req: AuthenticatedRequest, res: Response) =
       error: error instanceof Error ? error.message : error,
     });
   }
-};
+}
 
 
-// ─── Update User Profile (self-service, with optional photo) ──────────────────
-// Route: PUT /users/:id/profile
-// Middleware: uploadProfilePicture (multer), then this handler
 export const updateUserProfile = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -523,12 +520,8 @@ export const updateUserProfile = async (req: Request, res: Response) => {
     console.error('❌ Update profile error:', error);
     return res.status(500).json({ success: false, message: error.message || 'Internal server error' });
   }
-};
+}
 
-
-// ─── Serve Profile Picture ─────────────────────────────────────────────────────
-// Route: GET /uploads/:filename
-// Add this route in your router: router.get('/uploads/:filename', serveProfilePicture)
 export const serveProfilePicture = (req: Request, res: Response) => {
   const { filename } = req.params;
 
@@ -544,4 +537,90 @@ export const serveProfilePicture = (req: Request, res: Response) => {
   }
 
   res.sendFile(filePath);
-};
+}
+
+
+import { Op } from 'sequelize';
+
+// ─── GET /api/users ───────────────────────────────────────────────────────────
+// Query params:
+//   page     — page number (default 1)
+//   limit    — page size   (default 20, max 100)
+//   search   — matches name, email, telephone, licence_no, company_name
+//   type     — exact match on `type`  column  (e.g. ADMIN, APPLICANT)
+//   status   — exact match on `status` column (e.g. ACTIVE, INACTIVE)
+//   category — exact match on `category`
+// ─────────────────────────────────────────────────────────────────────────────
+export const getAllUsers = async (req: Request, res: Response) => {
+  try {
+    const page     = Math.max(1, parseInt(req.query.page     as string) || 1)
+    const limit    = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20))
+    const offset   = (page - 1) * limit
+
+    const search   = (req.query.search   as string)?.trim()
+    const type     = (req.query.type     as string)?.trim()
+    const status   = (req.query.status   as string)?.trim()
+    const category = (req.query.category as string)?.trim()
+
+    const where: any = {}
+
+    // ── Exact filters ─────────────────────────────────────────────────────────
+    if (type)     where.type     = type
+    if (status)   where.status   = status
+    if (category) where.category = category
+
+    // ── Full-text search across key columns ───────────────────────────────────
+    if (search) {
+      const like = `%${search}%`
+      where[Op.and] = [
+        ...(where[Op.and] ?? []),
+        {
+          [Op.or]: [
+            { first_name:    { [Op.like]: like } },
+            { surname:       { [Op.like]: like } },
+            { last_name:     { [Op.like]: like } },
+            { other_names:   { [Op.like]: like } },
+            { name:          { [Op.like]: like } },
+            { email:         { [Op.like]: like } },
+            { telephone:     { [Op.like]: like } },
+            { phone_no:      { [Op.like]: like } },
+            { licence_no:    { [Op.like]: like } },
+            { company_name:  { [Op.like]: like } },
+          ],
+        },
+      ]
+    }
+
+    const { count, rows: users } = await OldUser.findAndCountAll({
+      where,
+      // Never return password in list responses
+      attributes: { exclude: ['password'] },
+      order:  [['id', 'DESC']],
+      limit,
+      offset,
+    })
+
+    const totalPages = Math.ceil(count / limit)
+
+    return res.status(200).json({
+      success: true,
+      count,
+      data: users,
+      pagination: {
+        currentPage:  page,
+        totalPages,
+        totalRecords: count,
+        perPage:      limit,
+        hasNextPage:  page < totalPages,
+        hasPrevPage:  page > 1,
+      },
+    })
+  } catch (error: any) {
+    console.error('❌ getAllUsers error:', error)
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch users',
+      error: error instanceof Error ? error.message : error,
+    })
+  }
+}
