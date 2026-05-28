@@ -207,23 +207,116 @@ export const getPaidRecordsSummary = async (req: Request, res: Response) => {
   }
 }
 
+// export const getAllPaidRecords = async (req: Request, res: Response) => {
+//   try {
+//     const page           = parseInt(req.query.page as string) || 1
+//     const limit          = 10
+//     const offset         = (page - 1) * limit
+//     const search         = (req.query.search as string)?.trim()
+//     const specialization = req.query.specialization as string
+//     const emailStatus    = req.query.email_status as string
+//     const licenseStatus  = (req.query.license_status as string)?.trim()
+
+//     // Use the passed license_status if provided, otherwise default to 'SIGNED'
+//     const where: any = { license_status: licenseStatus || 'SIGNED' }
+
+//     if (specialization) {
+//       where.specialization = specialization
+//     }
+
+//     if (emailStatus === 'EMAIL SENT') {
+//       where.email_status = 'EMAIL SENT'
+//     } else if (emailStatus === 'NOT SENT') {
+//       where[Op.and] = [
+//         ...(where[Op.and] ?? []),
+//         {
+//           [Op.or]: [
+//             { email_status: null },
+//             { email_status: '' },
+//             { email_status: { [Op.not]: 'EMAIL SENT' } },
+//           ],
+//         },
+//       ]
+//     }
+
+//     if (search) {
+//       where[Op.and] = [
+//         ...(where[Op.and] ?? []),
+//         {
+//           [Op.or]: [
+//             { name:           { [Op.like]: `%${search}%` } },
+//             { email_address:  { [Op.like]: `%${search}%` } },
+//             { reg_no:         { [Op.like]: `%${search}%` } },
+//             { specialization: { [Op.like]: `%${search}%` } },
+//             { license_no:     { [Op.like]: `%${search}%` } },
+//           ],
+//         },
+//       ]
+//     }
+
+//     const { count, rows: records } = await ERBPaid.findAndCountAll({
+//       where,
+//       order: [['id', 'DESC']],
+//       limit,
+//       offset,
+//     })
+
+//     return res.status(200).json({
+//       success: true,
+//       count,
+//       data: records,
+//       pagination: {
+//         currentPage:  page,
+//         totalPages:   Math.ceil(count / limit),
+//         totalRecords: count,
+//         perPage:      limit,
+//         hasNextPage:  page < Math.ceil(count / limit),
+//         hasPrevPage:  page > 1,
+//       },
+//     })
+//   } catch (error: any) {
+//     return res.status(500).json({ success: false, message: 'Internal server error' })
+//   }
+// }
+
 export const getAllPaidRecords = async (req: Request, res: Response) => {
   try {
-    const page           = parseInt(req.query.page as string) || 1
-    const limit          = 10
-    const offset         = (page - 1) * limit
-    const search         = (req.query.search as string)?.trim()
-    const specialization = req.query.specialization as string
-    const emailStatus    = req.query.email_status as string
-    const licenseStatus  = (req.query.license_status as string)?.trim()
+    const page                 = parseInt(req.query.page as string) || 1
+    const limit                = 10
+    const offset               = (page - 1) * limit
+    const search               = (req.query.search as string)?.trim()
+    const specialization       = req.query.specialization as string
+    const emailStatus          = req.query.email_status as string
+    const licenseStatus        = (req.query.license_status as string)?.trim()
+    const excludeLicenseStatus = (req.query.exclude_license_status as string)?.trim() // NEW
 
-    // Use the passed license_status if provided, otherwise default to 'SIGNED'
-    const where: any = { license_status: licenseStatus || 'SIGNED' }
+    // ── license_status filter ─────────────────────────────────────────────────
+    // Priority:
+    //   1. exclude_license_status=SIGNED  → rows where status != SIGNED or is NULL
+    //   2. license_status=SIGNED          → exact match (original behaviour)
+    //   3. neither sent                   → default to exact match 'SIGNED'
+    const where: any = {}
 
+    if (excludeLicenseStatus) {
+      // Exclude rows with this status; also include rows where status is NULL
+      // (NULL != 'SIGNED' is NULL in SQL, not TRUE — so we must handle it explicitly)
+      where.license_status = {
+        [Op.or]: [
+          { [Op.ne]: excludeLicenseStatus },
+          { [Op.is]: null },
+        ],
+      }
+    } else {
+      // Exact match — default to 'SIGNED' if nothing passed
+      where.license_status = licenseStatus || 'SIGNED'
+    }
+
+    // ── specialization filter ─────────────────────────────────────────────────
     if (specialization) {
       where.specialization = specialization
     }
 
+    // ── email_status filter ───────────────────────────────────────────────────
     if (emailStatus === 'EMAIL SENT') {
       where.email_status = 'EMAIL SENT'
     } else if (emailStatus === 'NOT SENT') {
@@ -239,6 +332,7 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
       ]
     }
 
+    // ── search filter ─────────────────────────────────────────────────────────
     if (search) {
       where[Op.and] = [
         ...(where[Op.and] ?? []),
@@ -254,9 +348,10 @@ export const getAllPaidRecords = async (req: Request, res: Response) => {
       ]
     }
 
+    // ── query ─────────────────────────────────────────────────────────────────
     const { count, rows: records } = await ERBPaid.findAndCountAll({
       where,
-      order: [['id', 'DESC']],
+      order:  [['id', 'DESC']],
       limit,
       offset,
     })
