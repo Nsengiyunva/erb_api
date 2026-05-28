@@ -39,7 +39,7 @@ router.get('/uploads/:filename', serveProfilePicture);
 router.get('/users/me',          authenticate, getCurrentUser);
 router.get('/users/:id',         authenticate, getUserById);
 router.put('/users/:id',         authenticate, updateUser);   
-router.get('/',  authenticate,  getAllUsers)            // admin: all fields
+router.get('/',  getAllUsers)            // admin: all fields
  
 // Self-service profile update — handles text fields + optional photo upload
 // The uploadProfilePicture multer middleware runs FIRST, then updateUserProfile
