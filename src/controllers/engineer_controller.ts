@@ -234,17 +234,29 @@ export const getPaidRecordsStats = async (req: Request, res: Response) => {
     const signed   = records.filter(r => (r.license_status || '').toUpperCase() === 'SIGNED');
     const unsigned = records.filter(r => (r.license_status || '').toUpperCase() !== 'SIGNED');
 
+    // amount_paid is only meaningfully populated once the payment receipt
+    // email has actually gone out — everything else sits at 0/NULL as a
+    // placeholder. Only rows with email_status = 'EMAIL SENT' count as
+    // confirmed revenue.
+    const isConfirmedPayment = (r: any) =>
+      (r.email_status || '').trim().toUpperCase() === 'EMAIL SENT';
+
+    const paidSigned = signed.filter(isConfirmedPayment);
+
     // ── category (base_field) breakdown ─────────────────────────────
+    // count = all signed/issued licenses in that category
+    // revenue = only the confirmed-payment subset of those
     const byType = LICENSE_TYPES.reduce((acc, type) => {
-      const rows = signed.filter(r => (r.base_field || '').toUpperCase() === type);
+      const rows     = signed.filter(r => (r.base_field || '').toUpperCase() === type);
+      const paidRows = rows.filter(isConfirmedPayment);
       acc[type.toLowerCase()] = {
         count:   rows.length,
-        revenue: rows.reduce((sum, r) => sum + toAmount(r.amount_paid), 0),
+        revenue: paidRows.reduce((sum, r) => sum + toAmount(r.amount_paid), 0),
       };
       return acc;
     }, {} as Record<string, { count: number; revenue: number }>);
 
-    const totalRevenue = signed.reduce((sum, r) => sum + toAmount(r.amount_paid), 0);
+    const totalRevenue = paidSigned.reduce((sum, r) => sum + toAmount(r.amount_paid), 0);
 
     // ── top specializations (engineering fields) ─────────────────────
     const specStats: Record<string, { count: number; revenue: number }> = {};
@@ -253,7 +265,7 @@ export const getPaidRecordsStats = async (req: Request, res: Response) => {
       if (!spec) return;
       if (!specStats[spec]) specStats[spec] = { count: 0, revenue: 0 };
       specStats[spec].count += 1;
-      specStats[spec].revenue += toAmount(r.amount_paid);
+      if (isConfirmedPayment(r)) specStats[spec].revenue += toAmount(r.amount_paid);
     });
     const topSpecializations = Object.entries(specStats)
       .sort((a, b) => b[1].revenue - a[1].revenue)
@@ -270,7 +282,7 @@ export const getPaidRecordsStats = async (req: Request, res: Response) => {
     }
     const monthlyMap: Record<string, { revenue: number; count: number }> = {};
     months.forEach(m => (monthlyMap[m.key] = { revenue: 0, count: 0 }));
-    signed.forEach(r => {
+    paidSigned.forEach(r => {
       const d = r.created_at ? new Date(r.created_at as any) : null;
       if (!d || isNaN(d.getTime())) return;
       const key = monthKey(d);
@@ -291,7 +303,9 @@ export const getPaidRecordsStats = async (req: Request, res: Response) => {
     const momChangePct = lastMonth > 0 ? ((thisMonth - lastMonth) / lastMonth) * 100 : null;
 
     // ── recent activity ──────────────────────────────────────────────
-    const recentActivity = [...signed]
+    // Show recent CONFIRMED payments (not just any signed record) so the
+    // amounts on screen are always real, non-zero figures.
+    const recentActivity = [...paidSigned]
       .sort((a, b) => new Date(b.created_at as any).getTime() - new Date(a.created_at as any).getTime())
       .slice(0, 8)
       .map(r => ({
@@ -306,11 +320,12 @@ export const getPaidRecordsStats = async (req: Request, res: Response) => {
     return res.status(200).json({
       success: true,
       data: {
-        totalRecords:   records.length,
-        totalSigned:    signed.length,
-        totalUnsigned:  unsigned.length,
+        totalRecords:     records.length,
+        totalSigned:      signed.length,
+        totalUnsigned:    unsigned.length,
+        totalPaidRecords: paidSigned.length,
         totalRevenue,
-        avgRevenue:     signed.length ? Math.round(totalRevenue / signed.length) : 0,
+        avgRevenue:       paidSigned.length ? Math.round(totalRevenue / paidSigned.length) : 0,
         momChangePct,
         byType,
         topSpecializations,
