@@ -207,77 +207,122 @@ export const getPaidRecordsSummary = async (req: Request, res: Response) => {
   }
 }
 
-// export const getAllPaidRecords = async (req: Request, res: Response) => {
-//   try {
-//     const page           = parseInt(req.query.page as string) || 1
-//     const limit          = 10
-//     const offset         = (page - 1) * limit
-//     const search         = (req.query.search as string)?.trim()
-//     const specialization = req.query.specialization as string
-//     const emailStatus    = req.query.email_status as string
-//     const licenseStatus  = (req.query.license_status as string)?.trim()
+// ─────────────────────────────────────────────
+// GET /paid-records/stats — real dashboard numbers
+// Aggregates over the WHOLE table (not a paginated page).
+// ─────────────────────────────────────────────
+const LICENSE_TYPES = ['PERMANENT', 'TEMPORARY', 'TECHNOLOGIST', 'TECHNICIAN'];
 
-//     // Use the passed license_status if provided, otherwise default to 'SIGNED'
-//     const where: any = { license_status: licenseStatus || 'SIGNED' }
+const toAmount = (val: unknown): number => {
+  if (val === null || val === undefined) return 0;
+  const cleaned = String(val).replace(/[^0-9.]/g, '');
+  const n = parseFloat(cleaned);
+  return Number.isFinite(n) ? n : 0;
+};
 
-//     if (specialization) {
-//       where.specialization = specialization
-//     }
+export const getPaidRecordsStats = async (req: Request, res: Response) => {
+  try {
+    const records = await ERBPaid.findAll({
+      attributes: [
+        'name', 'reg_no', 'specialization', 'base_field',
+        'license_status', 'amount_paid', 'year_paid',
+        'issue_date', 'created_at',
+      ],
+      raw: true,
+    }) as any[];
 
-//     if (emailStatus === 'EMAIL SENT') {
-//       where.email_status = 'EMAIL SENT'
-//     } else if (emailStatus === 'NOT SENT') {
-//       where[Op.and] = [
-//         ...(where[Op.and] ?? []),
-//         {
-//           [Op.or]: [
-//             { email_status: null },
-//             { email_status: '' },
-//             { email_status: { [Op.not]: 'EMAIL SENT' } },
-//           ],
-//         },
-//       ]
-//     }
+    const signed   = records.filter(r => (r.license_status || '').toUpperCase() === 'SIGNED');
+    const unsigned = records.filter(r => (r.license_status || '').toUpperCase() !== 'SIGNED');
 
-//     if (search) {
-//       where[Op.and] = [
-//         ...(where[Op.and] ?? []),
-//         {
-//           [Op.or]: [
-//             { name:           { [Op.like]: `%${search}%` } },
-//             { email_address:  { [Op.like]: `%${search}%` } },
-//             { reg_no:         { [Op.like]: `%${search}%` } },
-//             { specialization: { [Op.like]: `%${search}%` } },
-//             { license_no:     { [Op.like]: `%${search}%` } },
-//           ],
-//         },
-//       ]
-//     }
+    // ── category (base_field) breakdown ─────────────────────────────
+    const byType = LICENSE_TYPES.reduce((acc, type) => {
+      const rows = signed.filter(r => (r.base_field || '').toUpperCase() === type);
+      acc[type.toLowerCase()] = {
+        count:   rows.length,
+        revenue: rows.reduce((sum, r) => sum + toAmount(r.amount_paid), 0),
+      };
+      return acc;
+    }, {} as Record<string, { count: number; revenue: number }>);
 
-//     const { count, rows: records } = await ERBPaid.findAndCountAll({
-//       where,
-//       order: [['id', 'DESC']],
-//       limit,
-//       offset,
-//     })
+    const totalRevenue = signed.reduce((sum, r) => sum + toAmount(r.amount_paid), 0);
 
-//     return res.status(200).json({
-//       success: true,
-//       count,
-//       data: records,
-//       pagination: {
-//         currentPage:  page,
-//         totalPages:   Math.ceil(count / limit),
-//         totalRecords: count,
-//         perPage:      limit,
-//         hasNextPage:  page < Math.ceil(count / limit),
-//         hasPrevPage:  page > 1,
-//       },
-//     })
-//   } catch (error: any) {
-//     return res.status(500).json({ success: false, message: 'Internal server error' })
-//   }
-// }
+    // ── top specializations (engineering fields) ─────────────────────
+    const specStats: Record<string, { count: number; revenue: number }> = {};
+    signed.forEach(r => {
+      const spec = (r.specialization || '').trim();
+      if (!spec) return;
+      if (!specStats[spec]) specStats[spec] = { count: 0, revenue: 0 };
+      specStats[spec].count += 1;
+      specStats[spec].revenue += toAmount(r.amount_paid);
+    });
+    const topSpecializations = Object.entries(specStats)
+      .sort((a, b) => b[1].revenue - a[1].revenue)
+      .slice(0, 10)
+      .map(([name, s]) => ({ name, count: s.count, revenue: s.revenue }));
+
+    // ── real monthly trend (last 12 months, by created_at) ──────────
+    const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const now = new Date();
+    const months: { key: string; label: string }[] = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({ key: monthKey(d), label: d.toLocaleString('default', { month: 'short', year: '2-digit' }) });
+    }
+    const monthlyMap: Record<string, { revenue: number; count: number }> = {};
+    months.forEach(m => (monthlyMap[m.key] = { revenue: 0, count: 0 }));
+    signed.forEach(r => {
+      const d = r.created_at ? new Date(r.created_at as any) : null;
+      if (!d || isNaN(d.getTime())) return;
+      const key = monthKey(d);
+      if (monthlyMap[key]) {
+        monthlyMap[key].revenue += toAmount(r.amount_paid);
+        monthlyMap[key].count += 1;
+      }
+    });
+    const monthlyTrend = months.map(m => ({
+      month:   m.label,
+      revenue: monthlyMap[m.key].revenue,
+      count:   monthlyMap[m.key].count,
+    }));
+
+    // ── month-over-month change ──────────────────────────────────────
+    const thisMonth = monthlyTrend[monthlyTrend.length - 1]?.revenue ?? 0;
+    const lastMonth  = monthlyTrend[monthlyTrend.length - 2]?.revenue ?? 0;
+    const momChangePct = lastMonth > 0 ? ((thisMonth - lastMonth) / lastMonth) * 100 : null;
+
+    // ── recent activity ──────────────────────────────────────────────
+    const recentActivity = [...signed]
+      .sort((a, b) => new Date(b.created_at as any).getTime() - new Date(a.created_at as any).getTime())
+      .slice(0, 8)
+      .map(r => ({
+        name:           r.name,
+        reg_no:         r.reg_no,
+        specialization: r.specialization,
+        base_field:     r.base_field,
+        amount_paid:    toAmount(r.amount_paid),
+        date:           r.created_at,
+      }));
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        totalRecords:   records.length,
+        totalSigned:    signed.length,
+        totalUnsigned:  unsigned.length,
+        totalRevenue,
+        avgRevenue:     signed.length ? Math.round(totalRevenue / signed.length) : 0,
+        momChangePct,
+        byType,
+        topSpecializations,
+        monthlyTrend,
+        recentActivity,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching paid records stats:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+}
 
 export const getAllPaidRecords = async (req: Request, res: Response) => {
   try {

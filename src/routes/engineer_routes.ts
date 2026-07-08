@@ -9,6 +9,7 @@ import { importEngineersFromCsv, checkhealth, importPaidList,  getAllPaidRecords
     updateERBPaid, insertEngineers, addEngineer, 
     insertPaidRecord,
     getPaidRecordsSummary,
+    getPaidRecordsStats,
     getAllEngineers,
     batchImportEngineers,
     getEngineerById,
@@ -50,6 +51,7 @@ router.post( "/addpaid", insertPaidRecord);
 
 router.get( "/checkhealth", checkhealth );
 router.get('/paid-records/summary', getPaidRecordsSummary);
+router.get('/paid-records/stats', getPaidRecordsStats);
 router.get('/paid-records', getAllPaidRecords);
 router.get("/paid-records/:id", getPaidRecordById);
 
