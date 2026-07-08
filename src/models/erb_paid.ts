@@ -16,6 +16,7 @@ export class ERBPaid extends Model {
   public purpose!: string;
   public amount_paid!: string;
   public year_paid!: string;
+  public record_type!: string;
 }
 
 ERBPaid.init(
@@ -94,6 +95,10 @@ ERBPaid.init(
       allowNull: true,
     },
     receipt_type: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    record_type: {
       type: DataTypes.STRING,
       allowNull: true,
     },

@@ -224,7 +224,7 @@ export const getPaidRecordsStats = async (req: Request, res: Response) => {
   try {
     const records = await ERBPaid.findAll({
       attributes: [
-        'name', 'reg_no', 'specialization', 'base_field',
+        'name', 'reg_no', 'specialization', 'base_field', 'record_type',
         'license_status', 'amount_paid', 'year_paid',
         'issue_date', 'created_at',
       ],
@@ -234,26 +234,16 @@ export const getPaidRecordsStats = async (req: Request, res: Response) => {
     const signed   = records.filter(r => (r.license_status || '').toUpperCase() === 'SIGNED');
     const unsigned = records.filter(r => (r.license_status || '').toUpperCase() !== 'SIGNED');
 
-    // amount_paid is only meaningfully populated once the payment receipt
-    // email has actually gone out — everything else sits at 0/NULL as a
-    // placeholder. Only rows with email_status = 'EMAIL SENT' count as
-    // confirmed revenue. This is independent of license_status — a paid
-    // record (e.g. an annual renewal) doesn't have to be a signed license.
-    // Normalize spacing/underscores/case so 'EMAIL_SENT', 'email sent',
-    // 'Email  Sent' etc. all match too.
+    // Revenue = signed licenses that actually have a paid amount recorded.
     const isConfirmedPayment = (r: any) =>
-      (r.email_status || '')
-        .toString()
-        .trim()
-        .toUpperCase()
-        .replace(/_/g, ' ')
-        .replace(/\s+/g, ' ') === 'EMAIL SENT';
+      (r.license_status || '').toString().trim().toUpperCase() === 'SIGNED' &&
+      toAmount(r.amount_paid) > 0;
 
     const paidRecords = records.filter(isConfirmedPayment);
 
     // ── category (base_field) breakdown ─────────────────────────────
     // count = all signed/issued licenses in that category
-    // revenue = confirmed-payment rows in that category (any status)
+    // revenue = signed + paid rows in that category
     const byType = LICENSE_TYPES.reduce((acc, type) => {
       const rows     = signed.filter(r => (r.base_field || '').toUpperCase() === type);
       const paidRows = paidRecords.filter(r => (r.base_field || '').toUpperCase() === type);
@@ -330,6 +320,24 @@ export const getPaidRecordsStats = async (req: Request, res: Response) => {
         date:           r.created_at,
       }));
 
+    // ── diagnostics ────────────────────────────────────────────────
+    // Groups rows by (record_type, license_status, email_status) with
+    // count + amount_paid sum, so the real shape of the data is visible
+    // straight from the API response — no DB client needed.
+    const diagBuckets: Record<string, { record_type: string; license_status: string; email_status: string; count: number; amountPaidSum: number }> = {};
+    records.forEach(r => {
+      const rt = (r.record_type || '(null)').toString();
+      const ls = (r.license_status || '(null)').toString();
+      const es = (r.email_status || '(null)').toString();
+      const key = `${rt}|${ls}|${es}`;
+      if (!diagBuckets[key]) {
+        diagBuckets[key] = { record_type: rt, license_status: ls, email_status: es, count: 0, amountPaidSum: 0 };
+      }
+      diagBuckets[key].count += 1;
+      diagBuckets[key].amountPaidSum += toAmount(r.amount_paid);
+    });
+    const diagnostics = Object.values(diagBuckets).sort((a, b) => b.amountPaidSum - a.amountPaidSum);
+
     return res.status(200).json({
       success: true,
       data: {
@@ -344,6 +352,7 @@ export const getPaidRecordsStats = async (req: Request, res: Response) => {
         topSpecializations,
         monthlyTrend,
         recentActivity,
+        diagnostics,
       },
     });
   } catch (error) {
