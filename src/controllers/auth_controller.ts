@@ -3,15 +3,15 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import OldUser  from "../models/old_user";
 
-// FIX: this was previously a hardcoded literal ("erb182qjdsufsdufudsuy")
-// that had nothing to do with the secret actually used to verify tokens.
-// Both middleware/authenticate.ts and middleware/authMiddleware.ts verify
-// incoming tokens against process.env.JWT_SECRET — so every token minted
-// here with the old hardcoded string would fail verification on any
-// authenticate-protected route unless .env's JWT_SECRET happened to equal
-// that exact literal by coincidence. Signing and verifying must use the
-// same secret.
-const JWT_SECRET = process.env.JWT_SECRET as string;
+// FIX: previously this was `const JWT_SECRET = process.env.JWT_SECRET as string`
+// evaluated at module-import time. Because this compiles to CommonJS and
+// server.ts imports the auth routes (which pull in this file) BEFORE calling
+// dotenv.config(), process.env.JWT_SECRET was still undefined at the moment
+// this constant was captured — permanently, for the module's lifetime. That
+// produced "Error: secretOrPrivateKey must have a value" on every login.
+// Reading process.env.JWT_SECRET fresh inside login() (below) avoids the
+// import-order hazard entirely, since it's evaluated per-request, long after
+// dotenv.config() has already run at startup.
 
 export const register = async (req: Request, res: Response) => {
     const exists = await OldUser.findOne({ where: { email: req.body.email } });
@@ -66,10 +66,19 @@ export const register = async (req: Request, res: Response) => {
   
     const valid = await user.comparePassword(password);
     if (!valid) return res.status(401).json({ message: "Invalid credentials" });
-  
+
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      // Fail loudly with a clear server-side log line instead of the opaque
+      // "secretOrPrivateKey must have a value" jsonwebtoken throws — makes
+      // a missing/misnamed .env entry immediately obvious in pm2 logs.
+      console.error("JWT_SECRET is not set in the environment — check .env on this server");
+      return res.status(500).json({ message: "Server misconfiguration: missing JWT secret" });
+    }
+
     const token = jwt.sign(
       { id: user.id, email: user.email },
-      JWT_SECRET,
+      jwtSecret,
       { expiresIn: "1d" }
     );
   

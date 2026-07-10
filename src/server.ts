@@ -1,5 +1,12 @@
+// FIX: "dotenv/config" self-invokes dotenv.config() the instant it's
+// required. Being the first import guarantees process.env is populated
+// before any other module below (routes, controllers, config/database)
+// is required — this compiles to CommonJS, where require() calls execute
+// in the exact order they're written, so anything that read process.env
+// at module-load time previously risked seeing undefined values (this is
+// exactly what broke JWT signing in auth_controller.ts).
+import "dotenv/config";
 import express from "express";
-import dotenv from "dotenv";
 import engineers_routes from "./routes/engineer_routes";
 import auth_routes from "./routes/authRoutes";
 import { connectDB } from "./config/database";
@@ -9,8 +16,6 @@ import client from "prom-client";
 // import fs from "fs";
 // import path from "path";
 import userRoutes from "./routes/user.routes";
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 8877;
