@@ -3,7 +3,15 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import OldUser  from "../models/old_user";
 
-const JWT_SECRET = "erb182qjdsufsdufudsuy";
+// FIX: this was previously a hardcoded literal ("erb182qjdsufsdufudsuy")
+// that had nothing to do with the secret actually used to verify tokens.
+// Both middleware/authenticate.ts and middleware/authMiddleware.ts verify
+// incoming tokens against process.env.JWT_SECRET — so every token minted
+// here with the old hardcoded string would fail verification on any
+// authenticate-protected route unless .env's JWT_SECRET happened to equal
+// that exact literal by coincidence. Signing and verifying must use the
+// same secret.
+const JWT_SECRET = process.env.JWT_SECRET as string;
 
 export const register = async (req: Request, res: Response) => {
     const exists = await OldUser.findOne({ where: { email: req.body.email } });
