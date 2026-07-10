@@ -472,7 +472,7 @@ export const updateUserProfile = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const { name, address, company_name, gender, dob, birth_place, email } = req.body;
+    const { name, address, company_name, gender, dob, birth_place, email, telephone, country, belongs_to } = req.body;
 
     // Only mutable fields — licence_no, category, status etc. are read-only for self-service
     const updates: Record<string, any> = {};
@@ -484,6 +484,10 @@ export const updateUserProfile = async (req: Request, res: Response) => {
     if (dob          !== undefined) updates.dob          = dob;
     if (birth_place  !== undefined) updates.birth_place  = birth_place;
     if (email        !== undefined) updates.email        = email;
+    if (telephone    !== undefined) updates.telephone    = telephone;
+    if (country      !== undefined) updates.country      = country;
+    // belongs_to (Registration Type) is constrained to 'Yes' / 'No' on the frontend select
+    if (belongs_to   !== undefined) updates.belongs_to   = belongs_to;
 
     // Handle profile picture upload
     if (req.file) {
