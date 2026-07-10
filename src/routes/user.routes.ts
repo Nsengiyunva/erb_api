@@ -34,15 +34,20 @@ const router = Router();
  
 // Serve profile pictures (public, no auth)
 router.get('/uploads/:filename', serveProfilePicture);
- 
+
 // Auth-protected user routes
-router.get('/users/me',          authenticate, getCurrentUser);
-router.get('/users/:id',         authenticate, getUserById);
-router.put('/users/:id',         authenticate, updateUser);   
+// FIX: router is already mounted at "/old/users" in server.ts, so these
+// paths must NOT repeat the "/users" segment — the previous version
+// ('/users/:id', '/users/me', '/users/:id/profile') resolved to
+// "/old/users/users/:id" etc, which the frontend never actually called
+// (it calls "/old/users/:id"), so profile updates were silently 404ing.
+router.get('/me',          authenticate, getCurrentUser)
+router.get('/:id',         authenticate, getUserById)
+router.put('/:id',         authenticate, updateUser)
 router.get('/',  getAllUsers)            // admin: all fields
- 
+
 // Self-service profile update — handles text fields + optional photo upload
 // The uploadProfilePicture multer middleware runs FIRST, then updateUserProfile
-router.put('/users/:id/profile', authenticate, uploadProfilePicture, updateUserProfile);
+router.put('/:id/profile', authenticate, uploadProfilePicture, updateUserProfile);
  
 export default router;
