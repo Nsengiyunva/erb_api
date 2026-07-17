@@ -22,8 +22,9 @@ export const register = async (req: Request, res: Response) => {
       dob: req.body.birth_date,
       created_at: Date.now(),
       updated_at: Date.now(),
-      user_type: "APPLICANT"
-      // user_picture: req.file ? `/uploads/users/${req.file.filename}` : null
+      user_type: "APPLICANT",
+      tin: req.body.tin || null,
+      user_picture: req.file ? `uploads/users/${req.file.filename}` : null,
     });
   
     res.status(201).json({

@@ -384,7 +384,7 @@ export const updateUser = async (req: Request, res: Response) => {
       'gender', 'company_name', 'address', 'country', 'type',
       'email', 'birth_place', 'licence_no', 'belongs_to', 'last_name',
       'phone_no', 'registered', 'category', 'name', 'status',
-      'user_type', 'user_level', 'password',
+      'user_type', 'user_level', 'password', 'tin',
     ];
 
     const updates: Partial<typeof req.body> = {};
@@ -472,7 +472,7 @@ export const updateUserProfile = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const { name, address, company_name, gender, dob, birth_place, email, telephone, country, belongs_to } = req.body;
+    const { name, address, company_name, gender, dob, birth_place, email, telephone, country, belongs_to, tin } = req.body;
 
     // Only mutable fields — licence_no, category, status etc. are read-only for self-service
     const updates: Record<string, any> = {};
@@ -486,19 +486,23 @@ export const updateUserProfile = async (req: Request, res: Response) => {
     if (email        !== undefined) updates.email        = email;
     if (telephone    !== undefined) updates.telephone    = telephone;
     if (country      !== undefined) updates.country      = country;
-    // belongs_to (Registration Type) is constrained to 'Yes' / 'No' on the frontend select
     if (belongs_to   !== undefined) updates.belongs_to   = belongs_to;
+    if (tin          !== undefined) updates.tin          = tin;
 
     // Handle profile picture upload
     if (req.file) {
       // Delete old picture if it exists
-      if ((user as any).profile_picture) {
-        const oldPath = path.join(UPLOAD_DIR, (user as any).profile_picture);
-        if (fs.existsSync(oldPath)) {
-          fs.unlinkSync(oldPath);
-        }
+      const oldPicture = (user as any).profile_picture || (user as any).user_picture;
+      if (oldPicture) {
+        // Handle both "uploads/users/filename" and bare "filename" stored paths
+        const oldPath = oldPicture.startsWith('uploads/')
+          ? path.join(process.cwd(), oldPicture)
+          : path.join(UPLOAD_DIR, oldPicture);
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
       }
-      updates.profile_picture = req.file.filename;
+      // Store as relative path so it's portable and can be served via /uploads/users/
+      updates.profile_picture = `uploads/users/${req.file.filename}`;
+      updates.user_picture    = `uploads/users/${req.file.filename}`;
     }
 
     if (Object.keys(updates).length === 0) {
@@ -508,10 +512,13 @@ export const updateUserProfile = async (req: Request, res: Response) => {
     await user.update(updates);
 
     // Return updated user + profile picture URL if applicable
+    const rawData = (user as any).toJSON();
+    const picturePath = rawData.profile_picture || rawData.user_picture;
     const responseData = {
-      ...(user as any).toJSON(),
-      profile_picture_url: (user as any).profile_picture
-        ? `/uploads/${(user as any).profile_picture}`
+      ...rawData,
+      // Serve via the static /uploads route on erb_api
+      profile_picture_url: picturePath
+        ? `https://data.erb.go.ug/${picturePath}`
         : null,
     };
 
@@ -530,11 +537,14 @@ export const serveProfilePicture = (req: Request, res: Response) => {
   const { filename } = req.params;
 
   // Basic sanitization — prevent path traversal
-  if (filename.includes('..') || filename.includes('/')) {
+  if (!filename || filename.includes('..') || filename.includes('/')) {
     return res.status(400).json({ success: false, message: 'Invalid filename' });
   }
 
-  const filePath = path.join(UPLOAD_DIR, filename);
+  // Look in users/ subdir first (new convention), then UPLOAD_DIR root (legacy)
+  const usersPath  = path.join(UPLOAD_DIR, 'users', filename);
+  const legacyPath = path.join(UPLOAD_DIR, filename);
+  const filePath   = fs.existsSync(usersPath) ? usersPath : legacyPath;
 
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ success: false, message: 'File not found' });

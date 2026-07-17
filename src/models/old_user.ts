@@ -32,6 +32,8 @@ export interface UserAttributes {
   user_type: string;
   user_level: string;
   profile_picture?: string;  // ← added
+  tin?: string;              // ← added
+  user_picture?: string;     // ← added (alias used by register route)
 }
 
 class OldUser extends Model<UserAttributes> implements UserAttributes {
@@ -62,6 +64,8 @@ class OldUser extends Model<UserAttributes> implements UserAttributes {
   public user_type!: string;
   public user_level!: string;
   public profile_picture!: string;  // ← added
+  public tin!: string;              // ← added
+  public user_picture!: string;     // ← added
 
   // 🔐 Password check
   public async comparePassword(plainPassword: string): Promise<boolean> {
@@ -101,6 +105,16 @@ OldUser.init(
     user_type: DataTypes.STRING,
     user_level: DataTypes.STRING,
     profile_picture: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      defaultValue: null,
+    },
+    tin: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+      defaultValue: null,
+    },
+    user_picture: {
       type: DataTypes.STRING(255),
       allowNull: true,
       defaultValue: null,
