@@ -2,8 +2,6 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 
-// Use the same directory as updateUserProfile so all user photos
-// live in one place and the /uploads/users/:filename serve route works.
 const uploadDir = "/home/user1/uploads/users";
 
 if (!fs.existsSync(uploadDir)) {
