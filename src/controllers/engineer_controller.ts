@@ -71,6 +71,65 @@ const validateRequired = (
 ): string[] =>
   REQUIRED_FIELDS.filter((f) => !payload[f]);
 
+// ─────────────────────────────────────────────
+// Shared guards for POST /addpaid (insertPaidRecord)
+// ─────────────────────────────────────────────
+// Fields a receipt genuinely can't function without: without reg_no +
+// year_paid the duplicate check below is meaningless, without
+// amount_paid there's nothing to print on the receipt, and without
+// email_address there's no one to send it to. specialization is
+// deliberately NOT required here — the existing single "Add New
+// Receipt" admin form never validated it client-side, so enforcing it
+// server-side would start rejecting saves that have always worked.
+// (The bulk-upload path in erb-helper already requires it before it
+// ever calls this endpoint, so bulk uploads get the stricter check
+// where it matters.)
+const REQUIRED_PAID_FIELDS = ["reg_no", "name", "amount_paid", "year_paid", "email_address"] as const;
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const validatePaidRecordPayload = (data: Record<string, any>): string[] => {
+  const errors: string[] = [];
+
+  for (const field of REQUIRED_PAID_FIELDS) {
+    const value = data?.[field];
+    if (value === undefined || value === null || String(value).trim() === "") {
+      errors.push(`Missing ${field.replace(/_/g, " ")}`);
+    }
+  }
+
+  if (data?.email_address) {
+    // email_address can be a ";"-separated list (mirrors existing usage
+    // elsewhere in this codebase) — every address in it must be valid.
+    const addresses = String(data.email_address).split(";").map(s => s.trim()).filter(Boolean);
+    const bad = addresses.find(addr => !EMAIL_RE.test(addr));
+    if (bad) errors.push(`Invalid email address: ${bad}`);
+  }
+
+  if (data?.amount_paid !== undefined && data?.amount_paid !== null && String(data.amount_paid).trim() !== "") {
+    const amount = Number(String(data.amount_paid).replace(/,/g, ""));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      errors.push("Amount must be a number greater than zero");
+    }
+  }
+
+  return errors;
+};
+
+// A "duplicate" means the same registration number already has a
+// SIGNED receipt for the same year — matches the license_status the
+// single-add form and the bulk-upload path both set on every insert,
+// so this is an exact, indexed-column lookup (not the fuzzy `search`
+// LIKE used by GET /paid-records).
+const findDuplicatePaidRecord = (regNo: string, yearPaid: string | number) =>
+  ERBPaid.findOne({
+    where: {
+      reg_no: String(regNo).trim(),
+      year_paid: String(yearPaid),
+      license_status: "SIGNED",
+    },
+  });
+
 
 // mthods
 
@@ -639,6 +698,29 @@ export const insertPaidRecord =  async (  req: Request, res: Response ) =>  {
   try {
 
     const { data } = req.body;
+
+    if (!data || typeof data !== "object") {
+      return res.status(400).json({ success: false, message: "Missing 'data' in request body" });
+    }
+
+    const validationErrors = validatePaidRecordPayload(data);
+    if (validationErrors.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        errors: validationErrors,
+      });
+    }
+
+    if (data.reg_no && data.year_paid) {
+      const existing = await findDuplicatePaidRecord(data.reg_no, data.year_paid);
+      if (existing) {
+        return res.status(409).json({
+          success: false,
+          message: `A receipt for reg_no ${data.reg_no} already exists for ${data.year_paid}`,
+        });
+      }
+    }
 
     const record = await ERBPaid.create({
       record_no: data.record_no ?? null,
