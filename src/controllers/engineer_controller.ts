@@ -425,7 +425,11 @@ export const getPaidRecordsStats = async (req: Request, res: Response) => {
 export const getAllPaidRecords = async (req: Request, res: Response) => {
   try {
     const page                 = parseInt(req.query.page as string) || 1
-    const limit                = 10
+    // Bounded, defaults to the original hardcoded 10 — the Export button
+    // on the frontend (Approved / My Applications) requests a larger page
+    // size so it can pull every matching record in a handful of calls
+    // instead of one per 10 rows.
+    const limit                = Math.min(100, Math.max(1, parseInt(req.query.limit as string, 10) || 10))
     const offset               = (page - 1) * limit
     const search               = (req.query.search as string)?.trim()
     const specialization       = req.query.specialization as string
