@@ -7,6 +7,7 @@ import filesRoutes from "./routes/files.routes";
 import cors from "cors";
 import client from "prom-client";
 import userRoutes from "./routes/user.routes";
+import { ensureEngineerColumns } from "./controllers/engineer_registry";
 
 const app = express();
 const PORT = process.env.PORT || 8877;
@@ -119,5 +120,5 @@ app.use("/api/auth/engineers", auth_routes);
 app.use("/api/files", filesRoutes);
 app.use("/old/users", userRoutes);
 
-connectDB();
+connectDB().then(() => ensureEngineerColumns());
 app.listen(PORT, () => console.log(`Server running on ${PORT}`));

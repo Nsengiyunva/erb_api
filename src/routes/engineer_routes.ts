@@ -15,6 +15,7 @@ import { importEngineersFromCsv, checkhealth, importPaidList,  getAllPaidRecords
     getEngineerById,
     updateEngineer,
     deleteEngineer} from "../controllers/engineer_controller";
+import { listRegistry, registryFilters, getRegistryEngineer } from "../controllers/engineer_registry";
 
   import {
       createERBWed,
@@ -54,6 +55,17 @@ router.get('/paid-records/summary', getPaidRecordsSummary);
 router.get('/paid-records/stats', getPaidRecordsStats);
 router.get('/paid-records', getAllPaidRecords);
 router.get("/paid-records/:id", getPaidRecordById);
+
+// ── Engineers Database (registry) ───────────────────────────────────────────
+// Must stay ABOVE the generic "/:id" routes. The frontend uses these;
+// PUT "/:id" below belongs to erb_paid_list (updateERBPaid), which is why
+// "Save" on the Edit Engineer page used to overwrite paid-list records.
+router.get("/registry",          listRegistry);
+router.get("/registry/filters",  registryFilters);
+router.get("/registry/:id",      getRegistryEngineer);
+router.post("/registry",         addEngineer);
+router.put("/registry/:id",      updateEngineer);
+router.delete("/registry/:id",   deleteEngineer);
 
 router.put("/:id", updateERBPaid);
 
