@@ -32,7 +32,7 @@ ERBEngineer.init(
 
     organisation: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
 
     country: {
