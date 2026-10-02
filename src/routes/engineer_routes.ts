@@ -15,7 +15,7 @@ import { importEngineersFromCsv, checkhealth, importPaidList,  getAllPaidRecords
     getEngineerById,
     updateEngineer,
     deleteEngineer} from "../controllers/engineer_controller";
-import { listRegistry, registryFilters, registrySummary, getRegistryEngineer } from "../controllers/engineer_registry";
+import { listRegistry, registryFilters, registrySummary, exportRegistry, getRegistryEngineer, invalidateRegistryCache } from "../controllers/engineer_registry";
 
   import {
       createERBWed,
@@ -27,6 +27,13 @@ import { listRegistry, registryFilters, registrySummary, getRegistryEngineer } f
     // import { uploadReceipt } from "../middleware/uploadReceipt";
 
 const router = Router();
+
+// Any write through this router (engineers, paid list, imports) can change
+// what the Engineers Database shows — drop its in-memory snapshot.
+router.use((req, res, next) => {
+  if (req.method !== "GET") res.on("finish", () => { if (res.statusCode < 400) invalidateRegistryCache(); });
+  next();
+});
 
 const FILE_DIR = "/var/ugpass/destination";
 
@@ -63,6 +70,7 @@ router.get("/paid-records/:id", getPaidRecordById);
 router.get("/registry",          listRegistry);
 router.get("/registry/filters",  registryFilters);
 router.get("/registry/summary",  registrySummary);
+router.get("/registry/export",   exportRegistry);
 router.get("/registry/:id",      getRegistryEngineer);
 router.post("/registry",         addEngineer);
 router.put("/registry/:id",      updateEngineer);
