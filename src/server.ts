@@ -26,12 +26,18 @@ app.use(
   })
 );
 
-app.use(express.json());
+// Default body limit is 100kb — a few hundred engineers in a batch import
+// already exceed that ("PayloadTooLargeError: request entity too large").
+// Override with JSON_BODY_LIMIT in .env if needed.
+app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || "20mb" }));
+app.use(express.urlencoded({ extended: true, limit: process.env.JSON_BODY_LIMIT || "20mb" }));
 app.use("/uploads", express.static("/home/user1/uploads"));
 
 app.use((req, res, next) => {
-  req.setTimeout(60000);
-  res.setTimeout(60000);
+  // Batch imports run one insert per row — give them longer than 60s.
+  const ms = req.path.endsWith("/batch-import") ? 10 * 60_000 : 60000;
+  req.setTimeout(ms);
+  res.setTimeout(ms);
   next();
 });
 

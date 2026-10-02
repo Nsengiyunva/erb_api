@@ -970,7 +970,7 @@ export const batchImportEngineers = async (
     return;
   }
 
-  const MAX_BATCH = 1000;
+  const MAX_BATCH = Number(process.env.ENGINEER_BATCH_MAX) || 5000;
   if (raw.length > MAX_BATCH) {
     res.status(422).json({
       success: false,
