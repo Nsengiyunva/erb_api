@@ -78,6 +78,8 @@ const splitEmails = (...vals: unknown[]): string[] =>
   ];
 
 const normReg = (v: unknown) => String(v ?? "").trim().toUpperCase().replace(/\s+/g, "");
+// old_users.licence_no may carry a year suffix ("389/2025") — compare on the reg part
+const normLicenceReg = (v: unknown) => normReg(v).replace(/\/\d{4}$/, "");
 
 const pictureUrl = (u: any): string | null => {
   const pic = u?.profile_picture || u?.user_picture;
@@ -90,9 +92,20 @@ const SQL_REG = `REPLACE(UPPER(TRIM(${E}.reg_no)),' ','')`;
 const SQL_EMAIL_SET =
   `LOWER(REPLACE(REPLACE(REPLACE(CONCAT_WS(';', ${E}.emails, ${E}.primary_email, ${E}.secondary_email),' ',''),',',';'),';',','))`;
 
+// Portal account = an old_users row whose email matches any of the
+// engineer's emails, OR whose licence_no is the engineer's reg_no
+// (with or without a "/YYYY" suffix).
+const SQL_U_LIC = `REPLACE(UPPER(TRIM(u.licence_no)),' ','')`;
 const SQL_HAS_ACCOUNT =
-  `EXISTS (SELECT 1 FROM old_users u WHERE u.email IS NOT NULL AND TRIM(u.email) <> '' ` +
-  `AND FIND_IN_SET(LOWER(TRIM(u.email)), ${SQL_EMAIL_SET}) > 0)`;
+  `EXISTS (SELECT 1 FROM old_users u WHERE ` +
+  `(u.email IS NOT NULL AND TRIM(u.email) <> '' AND FIND_IN_SET(LOWER(TRIM(u.email)), ${SQL_EMAIL_SET}) > 0) ` +
+  `OR (u.licence_no IS NOT NULL AND TRIM(${E}.reg_no) <> '' AND (${SQL_U_LIC} = ${SQL_REG} OR ${SQL_U_LIC} LIKE CONCAT(${SQL_REG}, '/____'))))`;
+
+// Categories used by the summary cards / ?category= filter
+const SQL_TEMPORARY =
+  `(UPPER(TRIM(COALESCE(${E}.type,''))) LIKE 'TEMP%' OR ${SQL_REG} REGEXP '^TR[/.-]?[0-9]')`;
+const SQL_TECHNOLOGIST = `(UPPER(TRIM(COALESCE(${E}.type,''))) LIKE 'TECHNOLOG%')`;
+const CATEGORY_SQL: Record<string, string> = { temporary: SQL_TEMPORARY, technologist: SQL_TECHNOLOGIST };
 
 const paidMatch = (year: number) =>
   `COALESCE(UPPER(p.receipt_type),'') <> 'DELETED' AND (` +
@@ -127,9 +140,14 @@ const enrichRows = async (rows: any[], year: number) => {
   const allEmails = [...new Set(emailsByRow.flat())];
   const regNos = [...new Set(rows.map((r) => String(r.reg_no || "").trim()).filter(Boolean))];
 
+  const normRegs = [...new Set(regNos.map(normReg).filter(Boolean))];
+  const licCol = Sequelize.fn("REPLACE", Sequelize.fn("UPPER", Sequelize.fn("TRIM", Sequelize.col("licence_no"))), " ", "");
   const or: any[] = [];
   if (allEmails.length) or.push({ email: { [Op.in]: allEmails } });
-  if (regNos.length) or.push({ licence_no: { [Op.in]: regNos } });
+  if (normRegs.length) {
+    or.push(Sequelize.where(licCol, { [Op.in]: normRegs }));
+    normRegs.forEach((r) => or.push(Sequelize.where(licCol, { [Op.like]: `${r}/____` })));
+  }
 
   const users: any[] = or.length
     ? await OldUser.findAll({
@@ -148,14 +166,19 @@ const enrichRows = async (rows: any[], year: number) => {
       if (!byEmail.has(k) || (!pictureUrl(byEmail.get(k)) && pictureUrl(u))) byEmail.set(k, u);
     }
     if (u.licence_no) {
-      const k = normReg(u.licence_no);
+      const k = normLicenceReg(u.licence_no);
       if (!byReg.has(k) || (!pictureUrl(byReg.get(k)) && pictureUrl(u))) byReg.set(k, u);
     }
   }
 
   return rows.map((r, i) => {
-    const account = emailsByRow[i].map((e) => byEmail.get(e)).find(Boolean) || null;
+    const emailUser = emailsByRow[i].map((e) => byEmail.get(e)).find(Boolean) || null;
     const regUser = byReg.get(normReg(r.reg_no)) || null;
+    const account = emailUser || regUser;
+    const accountEmail = account?.email ? String(account.email).trim() : null;
+    // Matched on reg_no/licence_no but the account uses a different email
+    // than the ones on the engineer record → show both on the card.
+    const emailMismatch = !!accountEmail && !emailsByRow[i].includes(accountEmail.toLowerCase());
     const licenceNo = r.licence_no_for_year || null;
     const renewal = r.renewal_status_for_year || null;
     delete r.licence_no_for_year;
@@ -164,7 +187,12 @@ const enrichRows = async (rows: any[], year: number) => {
       ...r,
       has_account: !!account,
       account: account
-        ? { id: account.id, email: account.email, name: account.name, tin: account.tin || null }
+        ? {
+            id: account.id, email: accountEmail, name: account.name, tin: account.tin || null,
+            licence_no: account.licence_no || null,
+            matched_by: emailUser ? "email" : "reg_no",
+            email_mismatch: emailMismatch,
+          }
         : null,
       tin: account?.tin || r.tin || null,
       photo_url: pictureUrl(account) || pictureUrl(regUser) || r.photo || null,
@@ -210,6 +238,7 @@ const yesNo = (v: unknown) => {
 
 // ── GET /registry ───────────────────────────────────────────────────────────
 // Query: page, limit, search, field, type ("__none" = not set), country,
+//        category=temporary|technologist,
 //        has_account=yes|no, licensed=yes|no, licence_year (default this year)
 export const listRegistry = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -223,6 +252,8 @@ export const listRegistry = async (req: Request, res: Response): Promise<void> =
     const lic = yesNo(req.query.licensed);
     if (acc !== null) extra.push(Sequelize.literal(acc ? SQL_HAS_ACCOUNT : `NOT ${SQL_HAS_ACCOUNT}`));
     if (lic !== null) extra.push(Sequelize.literal(lic ? SQL_HAS_LICENCE(year) : `NOT ${SQL_HAS_LICENCE(year)}`));
+    const cat = CATEGORY_SQL[String(req.query.category || "").toLowerCase()];
+    if (cat) extra.push(Sequelize.literal(cat));
     const where: any = extra.length ? { [Op.and]: [base, ...extra] } : base;
 
     const [{ count, rows }, noAccount, noLicence, totalBase] = await Promise.all([
@@ -325,5 +356,41 @@ export const getRegistryEngineer = async (req: Request, res: Response): Promise<
   } catch (error: any) {
     console.error("getRegistryEngineer:", error);
     res.status(500).json({ success: false, message: "Failed to fetch engineer.", error: error.message });
+  }
+};
+
+// ── GET /registry/summary?licence_year= ─────────────────────────────────────
+// Whole-database counts for the summary cards (ignores list filters).
+export const registrySummary = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const year = parseYear(req.query.licence_year);
+    const acc = SQL_HAS_ACCOUNT;
+    const lic = SQL_HAS_LICENCE(year);
+    const [row] = await sequelize.query<any>(
+      `SELECT COUNT(*) AS total,
+              SUM(CASE WHEN ${SQL_TEMPORARY} THEN 1 ELSE 0 END) AS temporary,
+              SUM(CASE WHEN ${SQL_TECHNOLOGIST} THEN 1 ELSE 0 END) AS technologist,
+              SUM(CASE WHEN NOT ${acc} THEN 1 ELSE 0 END) AS without_account,
+              SUM(CASE WHEN NOT ${lic} THEN 1 ELSE 0 END) AS without_licence,
+              SUM(CASE WHEN ${acc} AND ${lic} THEN 1 ELSE 0 END) AS account_and_licence
+         FROM erb_engineer AS ${E}`,
+      { type: QueryTypes.SELECT }
+    );
+    const n = (v: unknown) => Number(v) || 0;
+    res.json({
+      success: true,
+      licence_year: year,
+      summary: {
+        total: n(row?.total),
+        temporary: n(row?.temporary),
+        technologist: n(row?.technologist),
+        without_account: n(row?.without_account),
+        without_licence: n(row?.without_licence),
+        account_and_licence: n(row?.account_and_licence),
+      },
+    });
+  } catch (error: any) {
+    console.error("registrySummary:", error);
+    res.status(500).json({ success: false, message: "Failed to load summary.", error: error.message });
   }
 };
