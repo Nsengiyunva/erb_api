@@ -15,7 +15,7 @@ import { importEngineersFromCsv, checkhealth, importPaidList,  getAllPaidRecords
     getEngineerById,
     updateEngineer,
     deleteEngineer} from "../controllers/engineer_controller";
-import { listRegistry, registryFilters, registrySummary, exportRegistry, getRegistryEngineer, invalidateRegistryCache } from "../controllers/engineer_registry";
+import { listRegistry, registryFilters, registrySummary, exportRegistry, getRegistryEngineer, invalidateRegistryCache, registrationNumbers, registrationLookup } from "../controllers/engineer_registry";
 
   import {
       createERBWed,
@@ -67,6 +67,11 @@ router.get("/paid-records/:id", getPaidRecordById);
 // Must stay ABOVE the generic "/:id" routes. The frontend uses these;
 // PUT "/:id" below belongs to erb_paid_list (updateERBPaid), which is why
 // "Save" on the Edit Engineer page used to overwrite paid-list records.
+// Public self-registration (registration.erb.go.ug) — numbers without an
+// account for a category, and a single-engineer lookup to prefill the form.
+router.get("/registration/numbers", registrationNumbers);
+router.get("/registration/lookup",  registrationLookup);
+
 router.get("/registry",          listRegistry);
 router.get("/registry/filters",  registryFilters);
 router.get("/registry/summary",  registrySummary);

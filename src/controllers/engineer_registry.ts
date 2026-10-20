@@ -505,3 +505,107 @@ export const getRegistryEngineer = async (req: Request, res: Response): Promise<
     res.status(500).json({ success: false, message: "Failed to fetch engineer.", error: error.message });
   }
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Public self-registration helpers (registration.erb.go.ug/Register)
+//
+// Replaces the hard-coded `engineers` list in the frontend fixtures. Both
+// endpoints read the same in-memory snapshot as the Engineers Database, so an
+// engineer counts as "already has an account" exactly when the registry says
+// so (portal account matched by reg/licence no. or by one of their emails).
+//
+// The list endpoint returns registration numbers ONLY — contact details are
+// returned one engineer at a time by the lookup endpoint.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const splitPhones = (...vals: unknown[]): string[] => [
+  ...new Set(
+    vals
+      .flatMap((v) => String(v ?? "").split(/[,;/|]+/))
+      .map((s) => s.replace(/[^\d+]/g, ""))
+      .filter((s) => s.replace(/\D/g, "").length >= 7)
+  ),
+];
+
+const categoryTest = (raw: unknown) => {
+  const key = String(raw ?? "").trim().toLowerCase();
+  return CATEGORY_TEST[key] || null;
+};
+
+// GET /api/engineers/registration/numbers?category=PERMANENT
+export const registrationNumbers = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const test = categoryTest(req.query.category);
+    if (!test) {
+      res.status(400).json({ success: false, message: "category must be one of permanent, temporary, technologist, technician." });
+      return;
+    }
+    // Force a fresh read if the cached copy is older than 30s, so someone who
+    // registered a moment ago doesn't still appear in the list.
+    let snap = await getSnapshot(currentYear());
+    if (Date.now() - snap.builtAt > 30_000) snap = await getSnapshot(currentYear(), true);
+
+    const seen = new Set<string>();
+    const data: { id: number; reg_no: string }[] = [];
+    for (const r of snap.rows) {
+      const reg = String(r.reg_no ?? "").trim();
+      if (!reg || r.has_account || !test(r.effective_type || "")) continue;
+      const k = normReg(reg);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      data.push({ id: r.id, reg_no: reg });
+    }
+    data.sort((a, b) => a.reg_no.localeCompare(b.reg_no, "en", { numeric: true, sensitivity: "base" }));
+    res.set("Cache-Control", "no-store");
+    res.json({ success: true, data, total: data.length });
+  } catch (error: any) {
+    console.error("registrationNumbers:", error);
+    res.status(500).json({ success: false, message: "Failed to load registration numbers." });
+  }
+};
+
+// GET /api/engineers/registration/lookup?reg_no=2057&category=PERMANENT
+export const registrationLookup = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const reg = normReg(req.query.reg_no);
+    if (!reg) {
+      res.status(400).json({ success: false, message: "reg_no is required." });
+      return;
+    }
+    const test = categoryTest(req.query.category);
+    const snap = await getSnapshot(currentYear(), true);
+    const r = snap.rows.find((x: any) => normReg(x.reg_no) === reg && (!test || test(x.effective_type || "")));
+    if (!r) {
+      res.status(404).json({ success: false, message: "No engineer found with that registration number." });
+      return;
+    }
+    if (r.has_account) {
+      res.status(409).json({ success: false, message: "An account already exists for this registration number. Please sign in or reset your password." });
+      return;
+    }
+    const phones = splitPhones(r.primary_contact, r.secondary_contact, r.phones);
+    const emails = splitEmails(r.primary_email, r.secondary_email, r.emails);
+    const country = String(r.country ?? "").trim();
+    res.set("Cache-Control", "no-store");
+    res.json({
+      success: true,
+      data: {
+        id: r.id,
+        reg_no: String(r.reg_no).trim(),
+        name: String(r.name ?? "").trim(),
+        gender: String(r.gender ?? "").trim().toUpperCase().charAt(0) || null,
+        reg_date: r.reg_date || null,
+        field: String(r.field ?? "").trim() || null,
+        type: r.effective_type || null,
+        country: TYPE_WORDS.includes(country.toUpperCase()) ? null : country || null,
+        organisation: r.organisation || null,
+        postal_address: String(r.address ?? "").trim() || null,
+        phones,
+        emails,
+      },
+    });
+  } catch (error: any) {
+    console.error("registrationLookup:", error);
+    res.status(500).json({ success: false, message: "Failed to look up engineer." });
+  }
+};
