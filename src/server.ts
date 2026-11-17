@@ -38,7 +38,15 @@ app.use((req, res, next) => {
   // Batch imports run one insert per row — give them longer than 60s.
   const ms = req.path.endsWith("/batch-import") ? 10 * 60_000 : 60000;
   req.setTimeout(ms);
-  res.setTimeout(ms);
+  // With no timeout callback Node silently destroys the socket when this
+  // fires, and nginx then reports "502 Bad Gateway". Answer with a real
+  // JSON 503 instead so the client can show a meaningful message.
+  res.setTimeout(ms, () => {
+    console.error(`[timeout] ${req.method} ${req.originalUrl} exceeded ${ms}ms`);
+    if (!res.headersSent) {
+      res.status(503).json({ message: "The server took too long to respond. Please try again." });
+    }
+  });
   next();
 });
 
@@ -120,5 +128,23 @@ app.use("/api/auth/engineers", auth_routes);
 app.use("/api/files", filesRoutes);
 app.use("/old/users", userRoutes);
 
-connectDB().then(() => ensureEngineerColumns());
+// Last-resort error handler (must come after all routes): any error that
+// reaches Express becomes JSON instead of an HTML stack trace.
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error(`[error] ${req.method} ${req.originalUrl}:`, err?.message ?? err);
+  if (res.headersSent) return;
+  const status = Number(err?.status || err?.statusCode) || 500;
+  res.status(status >= 400 && status < 600 ? status : 500).json({
+    message: status === 413 ? "The upload is too large." : "Unexpected server error.",
+  });
+});
+
+// A stray rejected promise should be logged, not take the whole API down.
+process.on("unhandledRejection", (reason) => {
+  console.error("[unhandledRejection]", reason);
+});
+
+connectDB()
+  .then(() => ensureEngineerColumns())
+  .catch((e) => console.error("[startup] init failed:", e?.message ?? e));
 app.listen(PORT, () => console.log(`Server running on ${PORT}`));

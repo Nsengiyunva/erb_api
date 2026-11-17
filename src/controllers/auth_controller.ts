@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import fs from "fs";
 import { Op, col, fn, where } from "sequelize";
 import OldUser  from "../models/old_user";
 import { ERBEngineer } from "../models";
@@ -10,6 +11,8 @@ import { invalidateRegistryCache } from "./engineer_registry";
 const normReg = (v: unknown) => String(v ?? "").trim().toUpperCase().replace(/\s+/g, "");
 
 export const register = async (req: Request, res: Response) => {
+  const started = Date.now();
+  try {
     const email = String(req.body.email ?? "").trim();
     if (!email) return res.status(400).json({ message: "Email address is required." });
 
@@ -66,11 +69,36 @@ export const register = async (req: Request, res: Response) => {
     // this licence number disappears from the list straight away.
     invalidateRegistryCache();
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "User registered successfully.",
-      userId: user.id
+      userId: user.id,
     });
-  };
+  } catch (err: any) {
+    // Never let a failure here escape: answer with JSON so the browser gets a
+    // real message instead of a dropped connection / 502, and log the cause
+    // (with timing) so it shows up in pm2 logs.
+    console.error(`[register] failed after ${Date.now() - started}ms:`, err?.name, err?.message);
+
+    // Don't leave an orphaned photo behind when the account was not created.
+    if (req.file?.path) fs.unlink(req.file.path, () => {});
+
+    if (res.headersSent) return;
+
+    if (err?.name === "SequelizeValidationError" || err?.name === "SequelizeUniqueConstraintError") {
+      const detail = err.errors?.map((e: any) => e.message).join("; ");
+      return res.status(400).json({ message: detail || "Some of the details you entered are invalid." });
+    }
+    if (err?.name === "SequelizeDatabaseError" && /Data too long|Incorrect .* value/i.test(err?.parent?.sqlMessage ?? err?.message ?? "")) {
+      return res.status(400).json({
+        message: "One of the fields is too long or has an invalid value. Please check your details (TIN: max 20 characters).",
+      });
+    }
+    if (/Connection|ECONNREFUSED|ETIMEDOUT|SequelizeConnection|SequelizeDatabaseError/i.test(`${err?.name} ${err?.message}`)) {
+      return res.status(503).json({ message: "The registration service is temporarily unavailable. Please try again in a few minutes." });
+    }
+    return res.status(500).json({ message: "Registration failed due to a server error. Please try again or contact the ERB Information Office." });
+  }
+};
 
   export const forgotPassword = async (req: Request, res: Response) => {
     const user = await OldUser.findOne({ where: { email: req.body.email } });
