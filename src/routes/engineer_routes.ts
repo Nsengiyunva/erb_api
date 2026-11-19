@@ -1,4 +1,5 @@
 import { RequestHandler, Router } from "express";
+import { requireUgpass } from "../middleware/ugpassGuard";
 import fs from "fs";
 import path from "path";
 import { promises as fsPromises } from 'fs';
@@ -155,7 +156,7 @@ const displayPdf: RequestHandler<DisplayParams> = async (req, res) => {
   }
 };
 
-router.get("/display/:registrationNo", displayPdf);
+router.get("/display/:registrationNo", requireUgpass, displayPdf);
 
 
 export default router;
